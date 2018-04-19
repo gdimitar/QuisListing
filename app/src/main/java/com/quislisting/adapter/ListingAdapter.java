@@ -73,7 +73,7 @@ public class ListingAdapter extends BaseAdapter {
     }
 
     private String getListingLocation(final List<ListingLocation> listingLocations) {
-        if (CollectionUtils.isNotEmpty(listingLocations)) {
+        if (CollectionUtils.isNotEmpty(listingLocations) && listingLocations.get(0) != null) {
             final ListingLocation listingLocation = listingLocations.get(0);
             return listingLocation.getLocation();
         }

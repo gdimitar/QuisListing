@@ -21,12 +21,12 @@ import com.mikepenz.materialdrawer.AccountHeader;
 import com.mikepenz.materialdrawer.AccountHeaderBuilder;
 import com.mikepenz.materialdrawer.Drawer;
 import com.mikepenz.materialdrawer.DrawerBuilder;
+import com.mikepenz.materialdrawer.model.ExpandableDrawerItem;
 import com.mikepenz.materialdrawer.model.PrimaryDrawerItem;
 import com.mikepenz.materialdrawer.model.ProfileDrawerItem;
 import com.mikepenz.materialdrawer.model.SecondaryDrawerItem;
 import com.quislisting.R;
 import com.quislisting.adapter.ListingAdapter;
-import com.quislisting.draweritems.OverflowMenuDrawerItem;
 import com.quislisting.model.BaseListing;
 import com.quislisting.model.User;
 import com.quislisting.service.SignoutService;
@@ -190,8 +190,10 @@ public class MainActivity extends AppCompatActivity implements AsyncCollectionRe
                 R.drawable.listings, "listingsView", ListingsActivity.class, false);
         final SecondaryDrawerItem messagesDrawerItem = prepareSecondaryDrawerItem(R.string.messagecenter,
                 R.drawable.message, "messagesView", MessagesActivity.class, false);
-        final OverflowMenuDrawerItem languageDrawerItem = prepareOverflowMenuDrawerItem(R.string.language,
-                R.string.languagedescription, R.menu.fragment_menu, R.drawable.language);
+        final ExpandableDrawerItem languageDrawerItem = prepareExpandableDrawerItem(getString(R.string.language),
+                R.drawable.language, getString(R.string.english), R.drawable.gb,
+                getString(R.string.bulgarian), R.drawable.bg, getString(R.string.romanian),
+                R.drawable.ro);
 
         drawer.addItems(addListingDrawerItem, listingsDrawerItem, messagesDrawerItem,
                 languageDrawerItem);
@@ -245,28 +247,27 @@ public class MainActivity extends AppCompatActivity implements AsyncCollectionRe
                 });
     }
 
-    private OverflowMenuDrawerItem prepareOverflowMenuDrawerItem(final int nameId,
-                                                                 final int languageDescriptionId,
-                                                                 final int menuId,
-                                                                 final int iconId) {
-        return new OverflowMenuDrawerItem().withName(nameId).withDescription(languageDescriptionId)
-                .withMenu(menuId).withOnMenuItemClickListener(item -> {
-                    switch (item.getItemId()) {
-                        case R.id.english:
+    private ExpandableDrawerItem prepareExpandableDrawerItem(final String name, final int iconId,
+                                                             final String englishText, final int englishIconId,
+                                                             final String bulgarianText, final int bulgarianIconId,
+                                                             final String romanianText, final int romanianIconId) {
+        return new ExpandableDrawerItem().withName(name).withIcon(iconId).withSelectable(false).withSubItems(
+                new SecondaryDrawerItem().withIcon(englishIconId).withName(englishText).withLevel(2)
+                        .withOnDrawerItemClickListener((view, position, drawerItem) -> {
                             setLocale("en");
-                            break;
-                        case R.id.bulgarian:
+                            return false;
+                        }),
+                new SecondaryDrawerItem().withIcon(bulgarianIconId).withName(bulgarianText).withLevel(2)
+                        .withOnDrawerItemClickListener((view, position, drawerItem) -> {
                             setLocale("bg");
-                            break;
-                        case R.id.romanian:
+                            return false;
+                        }),
+                new SecondaryDrawerItem().withIcon(romanianIconId).withName(romanianText).withLevel(2)
+                        .withOnDrawerItemClickListener((view, position, drawerItem) -> {
                             setLocale("ro");
-                            break;
-                        default:
-                            setLocale("en");
-                            break;
-                    }
-                    return false;
-                }).withIcon(iconId);
+                            return false;
+                        })
+        );
     }
 
     private AccountHeader prepareAccountHeader(final User user, final int colorId) {
