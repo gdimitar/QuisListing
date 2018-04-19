@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent" >
+
+    <ImageView
+        android:id="@+id/listingImage"
+        android:layout_width="175dp"
+        android:layout_height="175dp"
+        android:adjustViewBounds="true"
+        android:layout_marginEnd="20dp"
+        android:layout_marginRight="20dp"/>
+
+    <TextView
+        android:id="@+id/listingTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_toRightOf="@+id/listingImage"
+        android:layout_toEndOf="@+id/listingImage"
+        android:layout_marginTop="20dp"
+        android:paddingBottom="30dp"/>
+
+    <TextView
+        android:id="@+id/listingLocation"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/listingTitle"
+        android:layout_toRightOf="@+id/listingImage"
+        android:layout_toEndOf="@+id/listingImage"
+        android:paddingBottom="30dp"/>
+
+    <TextView
+        android:id="@+id/listingDate"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/listingLocation"
+        android:layout_toRightOf="@+id/listingImage"
+        android:layout_toEndOf="@+id/listingImage"
+        android:paddingBottom="30dp"/>
+
+</RelativeLayout>

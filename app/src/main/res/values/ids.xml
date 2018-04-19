@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<resources>
+    <item name="material_drawer_item_custom_url_item" type="id" />
+    <item name="material_drawer_item_icon_only" type="id" />
+    <item name="material_drawer_item_centered_primary" type="id" />
+    <item name="material_drawer_item_overflow_menu" type="id" />
+    <item name="material_drawer_profile_item_divider" type="id" />
+    <item name="message_name" type="id"/>
+    <item name="message_email" type="id"/>
+    <item name="message_text" type="id"/>
+    <item name="message_text_info" type="id"/>
+    <item name="send_message" type="id"/>
+    <item name="category" type="id"/>
+    <item name="country" type="id"/>
+    <item name="state" type="id"/>
+    <item name="city" type="id"/>
+    <item name="no_search_criteria" type="id"/>
+    <item name="search" type="id"/>
+</resources>
