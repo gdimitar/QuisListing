@@ -19,7 +19,7 @@
             android:layout_gravity="center_horizontal"
             android:layout_marginBottom="24dp"
             android:contentDescription="@string/qlimage"
-            android:src="@drawable/ql_logo_01_50x50" />
+            android:src="@drawable/ql_logo" />
 
         <android.support.design.widget.TextInputLayout
             android:layout_width="match_parent"
