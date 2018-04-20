@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.WindowManager;
@@ -16,19 +17,25 @@ import android.widget.Toast;
 
 import com.quislisting.R;
 import com.quislisting.model.User;
+import com.quislisting.task.AbstractGetResultFromPostTask;
 import com.quislisting.task.AsyncObjectResponse;
-import com.quislisting.task.AsyncSecondObjectResponse;
 import com.quislisting.task.RestRouter;
 import com.quislisting.task.impl.HttpGetUserRequestTask;
-import com.quislisting.task.impl.HttpUpdateUserRequestTask;
 import com.quislisting.util.FieldValidationUtils;
+import com.quislisting.util.JsonObjectPopulator;
 import com.quislisting.util.StringUtils;
+
+import org.json.JSONObject;
+
+import java.util.concurrent.ExecutionException;
 
 import butterknife.Bind;
 import butterknife.ButterKnife;
 
 public class ProfileActivity extends AppCompatActivity implements AsyncObjectResponse<User>,
-        AsyncSecondObjectResponse<Integer>, View.OnClickListener, AdapterView.OnItemSelectedListener {
+        View.OnClickListener, AdapterView.OnItemSelectedListener {
+
+    private static final String TAG = ProfileActivity.class.getSimpleName();
 
     @Bind(R.id.email)
     EditText email;
@@ -81,13 +88,26 @@ public class ProfileActivity extends AppCompatActivity implements AsyncObjectRes
                 } else {
                     final String idToken = getIntent().getStringExtra("idToken");
                     if (StringUtils.isNotEmpty(idToken)) {
-                        final HttpUpdateUserRequestTask updateUserRequestTask =
-                                new HttpUpdateUserRequestTask(receiveUpdates.isChecked());
-                        updateUserRequestTask.additionalDelegate = this;
-                        updateUserRequestTask.execute(RestRouter.User.UPDATE_USER,
+                        final UpdateUserTask updateUserTask =
+                                new UpdateUserTask(receiveUpdates.isChecked());
+                        updateUserTask.execute(RestRouter.User.UPDATE_USER,
                                 email.getText().toString(), firstName.getText().toString(),
                                 lastName.getText().toString(), language.getSelectedItem().toString(),
                                 idToken);
+
+                        try {
+                            final Integer result = updateUserTask.get();
+                            if (result != null && result == 200) {
+                                Toast.makeText(this, getString(R.string.profileupdated),
+                                        Toast.LENGTH_LONG).show();
+                            } else
+                                Toast.makeText(this, getString(R.string.profilenotupdated),
+                                        Toast.LENGTH_LONG).show();
+                        } catch (final InterruptedException e) {
+                            Log.e(TAG, "InterruptedException during the HTTP request.", e);
+                        } catch (final ExecutionException e) {
+                            Log.e(TAG, "ExecutionException during the HTTP request.", e);
+                        }
                     }
                 }
                 break;
@@ -114,16 +134,6 @@ public class ProfileActivity extends AppCompatActivity implements AsyncObjectRes
             receiveUpdates.setChecked(user.getUpdates());
             language.setSelection(setLanguageByPosition(user.getLangKey()));
         }
-    }
-
-    @Override
-    public void processSecondFinish(final Integer result) {
-        if (result != null && result == 200) {
-            Toast.makeText(this, getString(R.string.profileupdated),
-                    Toast.LENGTH_LONG).show();
-        } else
-            Toast.makeText(this, getString(R.string.profilenotupdated),
-                    Toast.LENGTH_LONG).show();
     }
 
     @Override
@@ -182,5 +192,40 @@ public class ProfileActivity extends AppCompatActivity implements AsyncObjectRes
                 return 2;
         }
         return 0;
+    }
+
+    static class UpdateUserTask extends AbstractGetResultFromPostTask {
+
+        private final boolean receiveUpdates;
+
+        public UpdateUserTask(final boolean receiveUpdates) {
+            this.receiveUpdates = receiveUpdates;
+        }
+
+        @Override
+        protected Integer doInBackground(final String... params) {
+            return super.doInBackground(params);
+        }
+
+        @Override
+        protected void onPostExecute(final Integer result) {
+            super.onPostExecute(result);
+        }
+
+        @Override
+        protected JSONObject prepareJsonObject(final String... params) {
+            return JsonObjectPopulator.prepareUserJson(params[1], params[2], params[3],
+                    params[4], receiveUpdates, false, null);
+        }
+
+        @Override
+        protected boolean includedBearerHeader() {
+            return true;
+        }
+
+        @Override
+        protected String getIdToken(final String... params) {
+            return params[5];
+        }
     }
 }

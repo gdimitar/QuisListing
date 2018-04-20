@@ -22,17 +22,14 @@ import android.widget.Spinner;
 import android.widget.TextView;
 
 import com.quislisting.R;
-import com.quislisting.adapter.CustomLocationArrayAdapter;
 import com.quislisting.adapter.NothingSelectedSpinnerAdapter;
 import com.quislisting.converter.JsonConverter;
 import com.quislisting.dto.LocationDTO;
 import com.quislisting.model.BaseCategory;
 import com.quislisting.task.AsyncCollectionResponse;
-import com.quislisting.task.AsyncSecondCollectionResponse;
 import com.quislisting.task.RestRouter;
 import com.quislisting.task.handler.HttpHandler;
 import com.quislisting.task.impl.HttpGetCategoriesRequestTask;
-import com.quislisting.task.impl.HttpGetLocationsRequestTask;
 import com.quislisting.util.BaseCategoryFilterUtil;
 import com.quislisting.util.ButtonUtils;
 import com.quislisting.util.CollectionUtils;
@@ -52,8 +49,7 @@ import java.util.concurrent.ExecutionException;
 import butterknife.Bind;
 import butterknife.ButterKnife;
 
-public class SearchActivity extends AppCompatActivity implements AsyncCollectionResponse<BaseCategory>,
-        AsyncSecondCollectionResponse<LocationDTO> {
+public class SearchActivity extends AppCompatActivity implements AsyncCollectionResponse<BaseCategory> {
 
     private static final String TAG = SearchActivity.class.getSimpleName();
 
@@ -63,9 +59,6 @@ public class SearchActivity extends AppCompatActivity implements AsyncCollection
     EditText searchText;
 
     private TextView noSearchCriteria;
-
-    private CustomLocationArrayAdapter<LocationDTO> stateArrayAdapter;
-    private CustomLocationArrayAdapter<LocationDTO> cityArrayAdapter;
 
     private List<BaseCategory> parentCategories;
     private List<BaseCategory> categoriesWithParent;
@@ -88,15 +81,6 @@ public class SearchActivity extends AppCompatActivity implements AsyncCollection
                 new HttpGetCategoriesRequestTask();
         getCategoriesRequestTask.delegate = this;
         getCategoriesRequestTask.execute(RestRouter.Category.GET_ALL_CATEGORIES);
-
-        final SharedPreferences sharedPreferences = getSharedPreferences("com.quislisting",
-                Context.MODE_PRIVATE);
-        language = sharedPreferences.getString("language", "en");
-
-        final HttpGetLocationsRequestTask getLocationsRequestTask =
-                new HttpGetLocationsRequestTask();
-        getLocationsRequestTask.delegate = this;
-        getLocationsRequestTask.execute(String.format(RestRouter.Location.GET_ALL_LOCATIONS, 0, language));
     }
 
     @Override
@@ -123,71 +107,23 @@ public class SearchActivity extends AppCompatActivity implements AsyncCollection
             noSearchCriteria.setGravity(Gravity.CENTER);
             searchLayout.addView(noSearchCriteria);
         }
-    }
 
-    @Override
-    public void processSecondFinish(final Collection<LocationDTO> LocationDTOs) {
-        if (CollectionUtils.isNotEmpty(LocationDTOs)) {
-            countrySpinner = SpinnerUtils.createSpinner(this, R.id.country,
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
-                    getString(R.string.country), 15, 15);
-            searchLayout.addView(countrySpinner);
+        final SharedPreferences sharedPreferences = getSharedPreferences("com.quislisting",
+                Context.MODE_PRIVATE);
+        language = sharedPreferences.getString("language", "en");
 
-            stateSpinner = SpinnerUtils.createSpinner(this, R.id.state,
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
-                    getString(R.string.state), 15, 15);
-            searchLayout.addView(stateSpinner);
-
-            citySpinner = SpinnerUtils.createSpinner(this, R.id.city,
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
-                    getString(R.string.city), 15, 15);
-            searchLayout.addView(citySpinner);
-
-            final List<LocationDTO> countries = new ArrayList<>(LocationDTOs);
-            countries.add(0, new LocationDTO(getString(R.string.all)));
-            CustomArrayAdapterUtil.prepareCustomLocationArrayAdapter(this, countries,
-                    R.layout.country_spinner_row_nothing_selected, countrySpinner);
-
-            states.add(0, new LocationDTO(getString(R.string.all)));
-            CustomArrayAdapterUtil.prepareCustomLocationArrayAdapter(this, states,
-                    R.layout.state_spinner_row_nothing_selected, stateSpinner);
-
-            cities.add(0, new LocationDTO(getString(R.string.all)));
-            CustomArrayAdapterUtil.prepareCustomLocationArrayAdapter(this, cities,
-                    R.layout.city_spinner_row_nothing_selected, citySpinner);
-
-            countrySpinner.setOnItemSelectedListener(countryListener);
-            stateSpinner.setOnItemSelectedListener(stateListener);
-            citySpinner.setOnItemSelectedListener(cityListener);
-        } else {
-            if (noSearchCriteria.getVisibility() != View.VISIBLE) {
-                noSearchCriteria = TextViewUtils.createTextView(this, LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT, R.id.no_search_criteria, R.string.nosearchcriteriaavailable);
-                noSearchCriteria.setText(getString(R.string.nosearchcriteriaavailable));
-                noSearchCriteria.setTextSize(16f);
-                noSearchCriteria.setGravity(Gravity.CENTER);
-                searchLayout.addView(noSearchCriteria);
-            }
+        final AsyncTask<String, Void, Collection<LocationDTO>> task = new RetrieveLocationsTask()
+                .execute(String.format(RestRouter.Location.GET_ALL_LOCATIONS,
+                        0, language));
+        final List<LocationDTO> countries;
+        try {
+            countries = new ArrayList<>(task.get());
+            handleDropDownMenus(countries);
+        } catch (final InterruptedException e) {
+            Log.e(TAG, "InterruptedException during the HTTP request.", e);
+        } catch (final ExecutionException e) {
+            Log.e(TAG, "ExecutionException during the HTTP request.", e);
         }
-
-        final AppCompatButton searchButton = ButtonUtils.createAppCompatButton(this,
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
-                R.id.search, 20, 20, R.string.search);
-        searchButton.setOnClickListener(v -> {
-            final Intent intent = new Intent(getApplicationContext(), SearchResultActivity.class);
-            intent.putExtra("searchText", searchText.getText() != null
-                    ? searchText.getText().toString() : StringUtils.EMPTY_STRING);
-            intent.putExtra("searchCategoryText", new SearchResultUtil<>(BaseCategory.class)
-                    .getSelectedData((BaseCategory) categorySpinner.getSelectedItem()));
-            intent.putExtra("searchCountryText", new SearchResultUtil<>(LocationDTO.class)
-                    .getSelectedData((LocationDTO) countrySpinner.getSelectedItem()));
-            intent.putExtra("searchStateText", new SearchResultUtil<>(LocationDTO.class)
-                    .getSelectedData((LocationDTO) stateSpinner.getSelectedItem()));
-            intent.putExtra("searchCityText", new SearchResultUtil<>(LocationDTO.class)
-                    .getSelectedData((LocationDTO) citySpinner.getSelectedItem()));
-            startActivity(intent);
-        });
-        searchLayout.addView(searchButton);
     }
 
     @Override
@@ -272,7 +208,7 @@ public class SearchActivity extends AppCompatActivity implements AsyncCollection
                                    final long id) {
             if (position > 0 && position != 1) {
                 final LocationDTO country = (LocationDTO) countrySpinner.getItemAtPosition(position);
-                final AsyncTask<String, Void, Collection<LocationDTO>> task = new RetrieveChildLocationsTask()
+                final AsyncTask<String, Void, Collection<LocationDTO>> task = new RetrieveLocationsTask()
                         .execute(String.format(RestRouter.Location.GET_ALL_LOCATIONS,
                                 country.getId(), language));
                 List<LocationDTO> newStates = new ArrayList<>();
@@ -312,7 +248,7 @@ public class SearchActivity extends AppCompatActivity implements AsyncCollection
                                    final long id) {
             if (position > 0 && position != 1) {
                 final LocationDTO state = (LocationDTO) stateSpinner.getItemAtPosition(position);
-                final AsyncTask<String, Void, Collection<LocationDTO>> task = new RetrieveChildLocationsTask()
+                final AsyncTask<String, Void, Collection<LocationDTO>> task = new RetrieveLocationsTask()
                         .execute(String.format(RestRouter.Location.GET_ALL_LOCATIONS,
                                 state.getId(), language));
                 List<LocationDTO> newCities = new ArrayList<>();
@@ -349,7 +285,7 @@ public class SearchActivity extends AppCompatActivity implements AsyncCollection
         }
     };
 
-    static class RetrieveChildLocationsTask extends AsyncTask<String, Void, Collection<LocationDTO>> {
+    static class RetrieveLocationsTask extends AsyncTask<String, Void, Collection<LocationDTO>> {
 
         @Override
         protected Collection<LocationDTO> doInBackground(final String... params) {
@@ -381,5 +317,69 @@ public class SearchActivity extends AppCompatActivity implements AsyncCollection
 
             return null;
         }
+    }
+
+    private void handleDropDownMenus(final List<LocationDTO> locations) {
+        if (CollectionUtils.isNotEmpty(locations)) {
+            countrySpinner = SpinnerUtils.createSpinner(this, R.id.country,
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
+                    getString(R.string.country), 15, 15);
+            searchLayout.addView(countrySpinner);
+
+            stateSpinner = SpinnerUtils.createSpinner(this, R.id.state,
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
+                    getString(R.string.state), 15, 15);
+            searchLayout.addView(stateSpinner);
+
+            citySpinner = SpinnerUtils.createSpinner(this, R.id.city,
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
+                    getString(R.string.city), 15, 15);
+            searchLayout.addView(citySpinner);
+
+            final List<LocationDTO> countries = new ArrayList<>(locations);
+            countries.add(0, new LocationDTO(getString(R.string.all)));
+            CustomArrayAdapterUtil.prepareCustomLocationArrayAdapter(this, countries,
+                    R.layout.country_spinner_row_nothing_selected, countrySpinner);
+
+            states.add(0, new LocationDTO(getString(R.string.all)));
+            CustomArrayAdapterUtil.prepareCustomLocationArrayAdapter(this, states,
+                    R.layout.state_spinner_row_nothing_selected, stateSpinner);
+
+            cities.add(0, new LocationDTO(getString(R.string.all)));
+            CustomArrayAdapterUtil.prepareCustomLocationArrayAdapter(this, cities,
+                    R.layout.city_spinner_row_nothing_selected, citySpinner);
+
+            countrySpinner.setOnItemSelectedListener(countryListener);
+            stateSpinner.setOnItemSelectedListener(stateListener);
+            citySpinner.setOnItemSelectedListener(cityListener);
+        } else {
+            if (noSearchCriteria.getVisibility() != View.VISIBLE) {
+                noSearchCriteria = TextViewUtils.createTextView(this, LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT, R.id.no_search_criteria, R.string.nosearchcriteriaavailable);
+                noSearchCriteria.setText(getString(R.string.nosearchcriteriaavailable));
+                noSearchCriteria.setTextSize(16f);
+                noSearchCriteria.setGravity(Gravity.CENTER);
+                searchLayout.addView(noSearchCriteria);
+            }
+        }
+
+        final AppCompatButton searchButton = ButtonUtils.createAppCompatButton(this,
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
+                R.id.search, 20, 20, R.string.search);
+        searchButton.setOnClickListener(v -> {
+            final Intent intent = new Intent(getApplicationContext(), SearchResultActivity.class);
+            intent.putExtra("searchText", searchText.getText() != null
+                    ? searchText.getText().toString() : StringUtils.EMPTY_STRING);
+            intent.putExtra("searchCategoryText", new SearchResultUtil<>(BaseCategory.class)
+                    .getSelectedData((BaseCategory) categorySpinner.getSelectedItem()));
+            intent.putExtra("searchCountryText", new SearchResultUtil<>(LocationDTO.class)
+                    .getSelectedData((LocationDTO) countrySpinner.getSelectedItem()));
+            intent.putExtra("searchStateText", new SearchResultUtil<>(LocationDTO.class)
+                    .getSelectedData((LocationDTO) stateSpinner.getSelectedItem()));
+            intent.putExtra("searchCityText", new SearchResultUtil<>(LocationDTO.class)
+                    .getSelectedData((LocationDTO) citySpinner.getSelectedItem()));
+            startActivity(intent);
+        });
+        searchLayout.addView(searchButton);
     }
 }

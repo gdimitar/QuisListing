@@ -2,7 +2,6 @@ package com.quislisting.task.impl;
 
 import com.quislisting.task.AbstractGetResultFromPostTask;
 import com.quislisting.task.AsyncObjectResponse;
-import com.quislisting.task.AsyncSecondObjectResponse;
 import com.quislisting.util.JsonObjectPopulator;
 
 import org.json.JSONObject;
@@ -10,8 +9,6 @@ import org.json.JSONObject;
 public class HttpUpdateUserRequestTask extends AbstractGetResultFromPostTask {
 
     public AsyncObjectResponse<Integer> delegate;
-
-    public AsyncSecondObjectResponse<Integer> additionalDelegate;
 
     private final boolean receiveUpdates;
 
@@ -22,11 +19,6 @@ public class HttpUpdateUserRequestTask extends AbstractGetResultFromPostTask {
     @Override
     protected Integer doInBackground(final String... params) {
         return super.doInBackground(params);
-    }
-
-    @Override
-    protected void onPostExecute(final Integer result) {
-        additionalDelegate.processSecondFinish(result);
     }
 
     @Override
