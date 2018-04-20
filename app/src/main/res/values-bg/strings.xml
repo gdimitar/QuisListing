@@ -59,7 +59,7 @@
     <string name="firstnamevalidation">Enter valid first name (not longer than 15 characters)Bg</string>
     <string name="lastnamevalidation">Enter valid last name (not longer than 15 characters)Bg</string>
     <string name="fetchdata">Fetching data, please waitBg</string>
-    <string name="nolistings">You don\'t have any listings, you can add some from add listing section hereBg</string>
+    <string name="nolistings">You don\'t have any listings, you can add some from add listing section here.Bg</string>
     <string name="norecentlistings">No recent listings available, you can create your own listing by clicking on the button below.Bg</string>
     <string name="facebookconnectioncancelled">Connection to facebook is cancelled, please try again laterBg</string>
     <string name="facebookconnectionerror">Connection to facebook failed, please try again laterBg</string>
@@ -117,4 +117,15 @@
     <string name="closeapp">Are you sure you want to exit?Bg</string>
     <string name="closeappyes">YesBg</string>
     <string name="closeappno">NoBg</string>
+    <string name="retrievelistingdetailsfailed">Listing is not loaded properly, please try again later.Bg</string>
+    <string name="retrieveusererror">User not loaded properly, please try again later.Bg</string>
+    <string name="retrievemessageerror">Unable to retrieve message conversation, please try again later.Bg</string>
+    <string name="retrievecategoryerror">Categories not loaded properly, please try again later.Bg</string>
+    <string name="retrievelocationerror">Languages not loaded properly, please try again later.Bg</string>
+    <string name="registernewusertext">Please note that if you send message, you will be automatically registered to QuisListing application. Proceed with user registration?Bg</string>
+    <string name="alertdialognewuser">Register new userBg</string>
+    <string name="noconnection">No connection available, please try again later.Bg</string>
+    <string name="nolistingdetails">Listing details are currently unavailable, please try again later.Bg</string>
+    <string name="retrieveprofileprefencesfailed">User preferences are currently unavailable, please try again later.Bg</string>
+    <string name="preferencesnotavailable">User preferences page is not available.Bg</string>
 </resources>

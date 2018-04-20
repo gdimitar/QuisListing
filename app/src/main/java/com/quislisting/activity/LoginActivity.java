@@ -31,8 +31,9 @@ import com.google.android.gms.common.SignInButton;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.quislisting.R;
 import com.quislisting.model.AuthenticationResult;
-import com.quislisting.task.AsyncObjectResponse;
-import com.quislisting.task.impl.HttpAuthenticateUserRequestTask;
+import com.quislisting.model.request.AuthenticateUserRequest;
+import com.quislisting.retrofit.APIInterface;
+import com.quislisting.retrofit.impl.APIClient;
 import com.quislisting.util.FieldValidationUtils;
 import com.quislisting.util.PasswordStrengthUtil;
 import com.quislisting.util.StringUtils;
@@ -51,9 +52,10 @@ import java.util.Arrays;
 
 import butterknife.Bind;
 import butterknife.ButterKnife;
+import retrofit2.Call;
 
 public class LoginActivity extends AppCompatActivity implements View.OnClickListener,
-        AsyncObjectResponse<AuthenticationResult>, TextWatcher, GoogleApiClient.OnConnectionFailedListener {
+        TextWatcher, GoogleApiClient.OnConnectionFailedListener {
 
     private static final int REQUEST_SIGNUP = 0;
     private static final String MAIN_VIEW = "mainView";
@@ -171,14 +173,14 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
                             @Override
                             public void onCancel() {
                                 Toast.makeText(LoginActivity.this,
-                                        R.string.facebookconnectioncancelled, Toast.LENGTH_LONG)
+                                        R.string.facebookconnectioncancelled, Toast.LENGTH_SHORT)
                                         .show();
                             }
 
                             @Override
                             public void onError(final FacebookException exception) {
                                 Toast.makeText(LoginActivity.this,
-                                        R.string.facebookconnectionerror, Toast.LENGTH_LONG).show();
+                                        R.string.facebookconnectionerror, Toast.LENGTH_SHORT).show();
                             }
                         });
 
@@ -200,7 +202,7 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
                     @Override
                     public void failure(final TwitterException exception) {
                         Toast.makeText(LoginActivity.this, R.string.twitterconnectionerror,
-                                Toast.LENGTH_LONG).show();
+                                Toast.LENGTH_SHORT).show();
                     }
                 });
                 break;
@@ -219,40 +221,6 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
     @Override
     public void supportFinishAfterTransition() {
         super.supportFinishAfterTransition();
-    }
-
-    @Override
-    public void processFinish(final AuthenticationResult result) {
-        Intent intent = null;
-        final String fromView = getIntent().getStringExtra("fromView");
-
-        switch (fromView) {
-            case MAIN_VIEW:
-                intent = new Intent(this, MainActivity.class);
-                break;
-            case ADD_LISTING_VIEW:
-                intent = new Intent(this, AddListingActivity.class);
-                break;
-            case LISTINGS_VIEW:
-                intent = new Intent(this, ListingsActivity.class);
-                break;
-            case MESSAGES_VIEW:
-                intent = new Intent(this, MessagesActivity.class);
-                break;
-        }
-
-        assert intent != null;
-        intent.putExtra("username", username.getText().toString());
-
-        if (result != null && StringUtils.isNotEmpty(result.getId_token())) {
-            intent.putExtra("idToken", result.getId_token());
-            onLoginSuccess();
-            loginProgressDialog.dismiss();
-            startActivity(intent);
-        } else {
-            onLoginFailed();
-            loginProgressDialog.dismiss();
-        }
     }
 
     @Override
@@ -333,16 +301,59 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
         loginProgressDialog.setMessage(getString(R.string.authenticatinguser));
         loginProgressDialog.show();
 
-        final HttpAuthenticateUserRequestTask task = new HttpAuthenticateUserRequestTask();
-        task.delegate = this;
-        task.execute(username.getText().toString(), password.getText().toString());
+        final APIInterface apiInterface = APIClient.getClient().create(APIInterface.class);
+
+        final AuthenticateUserRequest authenticateUserRequest =
+                new AuthenticateUserRequest(username.getText().toString(), password.getText().toString(),
+                        false);
+        final Call<AuthenticationResult> authenticationResultCall = apiInterface.authenticateUser(authenticateUserRequest);
+        authenticationResultCall.enqueue(new Callback<AuthenticationResult>() {
+            @Override
+            public void success(final Result<AuthenticationResult> result) {
+                Intent intent = null;
+                final String fromView = getIntent().getStringExtra("fromView");
+
+                switch (fromView) {
+                    case MAIN_VIEW:
+                        intent = new Intent(getApplicationContext(), MainActivity.class);
+                        break;
+                    case ADD_LISTING_VIEW:
+                        intent = new Intent(getApplicationContext(), AddListingActivity.class);
+                        break;
+                    case LISTINGS_VIEW:
+                        intent = new Intent(getApplicationContext(), ListingsActivity.class);
+                        break;
+                    case MESSAGES_VIEW:
+                        intent = new Intent(getApplicationContext(), MessagesActivity.class);
+                        break;
+                }
+
+                assert intent != null;
+                intent.putExtra("username", username.getText().toString());
+
+                if (result != null && StringUtils.isNotEmpty(result.data.getId_token())) {
+                    intent.putExtra("idToken", result.data.getId_token());
+                    onLoginSuccess();
+                    startActivity(intent);
+                } else {
+                    onLoginFailed();
+                }
+                loginProgressDialog.dismiss();
+            }
+
+            @Override
+            public void failure(final TwitterException exception) {
+                onLoginFailed();
+                loginProgressDialog.dismiss();
+            }
+        });
     }
 
     private void handleSignInResult(final GoogleSignInResult result) {
         if (result.isSuccess()) {
             goMainScreen();
         } else {
-            Toast.makeText(this, R.string.googleconnectionerror, Toast.LENGTH_LONG).show();
+            Toast.makeText(this, R.string.googleconnectionerror, Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -360,7 +371,7 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
 
     public void onLoginFailed() {
         Toast.makeText(getBaseContext(), getString(R.string.loginfailed),
-                Toast.LENGTH_LONG).show();
+                Toast.LENGTH_SHORT).show();
         login.setEnabled(true);
     }
 

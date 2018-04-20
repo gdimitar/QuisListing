@@ -1,72 +1,24 @@
 package com.quislisting.model;
 
+import com.google.gson.annotations.SerializedName;
 import com.quislisting.dto.ContentFieldGroupDTO;
 
 import java.util.List;
 
 public class ListingField {
 
+    @SerializedName("id")
     private Long id;
+    @SerializedName("type")
     private String type;
+    @SerializedName("name")
     private String name;
+    @SerializedName("value")
     private String value;
+    @SerializedName("items")
     private List<ListingFieldItem> items;
+    @SerializedName("dlListingFieldItemGroups")
     private List<ListingFieldItemGroup> dlListingFieldItemGroups;
+    @SerializedName("dlContentFieldGroup")
     private ContentFieldGroupDTO dlContentFieldGroup;
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(final Long id) {
-        this.id = id;
-    }
-
-    public String getType() {
-        return type;
-    }
-
-    public void setType(final String type) {
-        this.type = type;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(final String name) {
-        this.name = name;
-    }
-
-    public String getValue() {
-        return value;
-    }
-
-    public void setValue(final String value) {
-        this.value = value;
-    }
-
-    public List<ListingFieldItem> getItems() {
-        return items;
-    }
-
-    public void setItems(final List<ListingFieldItem> items) {
-        this.items = items;
-    }
-
-    public List<ListingFieldItemGroup> getDlListingFieldItemGroups() {
-        return dlListingFieldItemGroups;
-    }
-
-    public void setDlListingFieldItemGroups(final List<ListingFieldItemGroup> dlListingFieldItemGroups) {
-        this.dlListingFieldItemGroups = dlListingFieldItemGroups;
-    }
-
-    public ContentFieldGroupDTO getDlContentFieldGroup() {
-        return dlContentFieldGroup;
-    }
-
-    public void setDlContentFieldGroup(final ContentFieldGroupDTO dlContentFieldGroup) {
-        this.dlContentFieldGroup = dlContentFieldGroup;
-    }
 }
