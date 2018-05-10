@@ -7,6 +7,7 @@ import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -14,9 +15,8 @@ import com.quislisting.R;
 import com.quislisting.adapter.SlidingImageAdapter;
 import com.quislisting.model.Attachment;
 import com.quislisting.model.Listing;
-import com.quislisting.task.AsyncObjectResponse;
-import com.quislisting.task.RestRouter;
-import com.quislisting.task.impl.HttpGetListingRequestTask;
+import com.quislisting.retrofit.APIInterface;
+import com.quislisting.retrofit.impl.APIClient;
 import com.quislisting.util.CollectionUtils;
 import com.quislisting.util.StringUtils;
 import com.viewpagerindicator.CirclePageIndicator;
@@ -25,9 +25,11 @@ import java.util.List;
 
 import butterknife.Bind;
 import butterknife.ButterKnife;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
-public class ListingDetailsActivity extends AppCompatActivity implements AsyncObjectResponse<Listing>,
-        View.OnClickListener {
+public class ListingDetailsActivity extends AppCompatActivity implements View.OnClickListener {
 
     private ViewPager viewPager;
     private int currentPage = 0;
@@ -49,6 +51,8 @@ public class ListingDetailsActivity extends AppCompatActivity implements AsyncOb
     TextView sendMessage;
     @Bind(R.id.reportListing)
     TextView reportListing;
+    @Bind(R.id.listingDetailsView)
+    ScrollView scrollView;
 
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
@@ -59,34 +63,53 @@ public class ListingDetailsActivity extends AppCompatActivity implements AsyncOb
         ButterKnife.bind(this);
 
         final String listingId = getIntent().getStringExtra("listingId");
-        final HttpGetListingRequestTask getListingRequestTask =
-                new HttpGetListingRequestTask();
-        getListingRequestTask.delegate = this;
-        getListingRequestTask.execute(String.format(RestRouter.Listing.GET_LISTING, listingId));
+
+        final APIInterface apiInterface = APIClient.getClient().create(APIInterface.class);
+
+        final Call<Listing> getListingCall = apiInterface.getListing(listingId);
+
+        getListingCall.enqueue(new Callback<Listing>() {
+            @Override
+            public void onResponse(final Call<Listing> call, final Response<Listing> response) {
+                if (response.isSuccessful()) {
+                    final Listing listing = response.body();
+                    textCategory.setText(CollectionUtils.isNotEmpty(listing.getDlCategories())
+                            ? listing.getDlCategories().get(0) : StringUtils.UNKNOWN_VALUE);
+                    textLocation.setText(CollectionUtils.isNotEmpty(listing.getDlLocations())
+                            ? listing.getDlLocations().get(0).getLocation() : StringUtils.UNKNOWN_VALUE);
+                    textPrice.setText(listing.getPrice() != null
+                            ? String.valueOf(listing.getPrice().doubleValue()) : StringUtils.UNKNOWN_VALUE);
+                    textContact.setText(StringUtils.isNotEmpty(listing.getContactInfo())
+                            ? listing.getContactInfo() : StringUtils.UNKNOWN_VALUE);
+                    textDescription.setText(listing.getContent());
+
+                    final List<Attachment> attachments = listing.getAttachments();
+                    if (CollectionUtils.isNotEmpty(attachments)) {
+                        initImageSlider(attachments);
+                    }
+                } else {
+                    scrollView.removeAllViews();
+                    setContentView(R.layout.empty_layout);
+
+                    Toast.makeText(getApplicationContext(), getString(R.string.retrievelistingdetailsfailed),
+                            Toast.LENGTH_SHORT).show();
+
+                    final TextView emptyText = (TextView) findViewById(R.id.emptyText);
+                    emptyText.setText(getString(R.string.nolistings));
+                }
+            }
+
+            @Override
+            public void onFailure(final Call<Listing> call, final Throwable t) {
+                call.cancel();
+                Toast.makeText(getApplicationContext(), getString(R.string.noconnection),
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
 
         editListing.setOnClickListener(this);
         sendMessage.setOnClickListener(this);
         reportListing.setOnClickListener(this);
-    }
-
-    @Override
-    public void processFinish(final Listing listing) {
-        if (listing != null) {
-            textCategory.setText(CollectionUtils.isNotEmpty(listing.getDlCategories())
-                    ? listing.getDlCategories().get(0) : StringUtils.UNKNOWN_VALUE);
-            textLocation.setText(CollectionUtils.isNotEmpty(listing.getDlLocations())
-                    ? listing.getDlLocations().get(0).getLocation() : StringUtils.UNKNOWN_VALUE);
-            textPrice.setText(listing.getPrice() != null
-                    ? String.valueOf(listing.getPrice().doubleValue()) : StringUtils.UNKNOWN_VALUE);
-            textContact.setText(StringUtils.isNotEmpty(listing.getContactInfo())
-                    ? listing.getContactInfo() : StringUtils.UNKNOWN_VALUE);
-            textDescription.setText(listing.getContent());
-
-            final List<Attachment> attachments = listing.getAttachments();
-            if (CollectionUtils.isNotEmpty(attachments)) {
-                initImageSlider(attachments);
-            }
-        }
     }
 
     @Override
@@ -126,7 +149,7 @@ public class ListingDetailsActivity extends AppCompatActivity implements AsyncOb
                 break;
             case R.id.reportListing:
                 Toast.makeText(this, "no design yet",
-                        Toast.LENGTH_LONG).show();
+                        Toast.LENGTH_SHORT).show();
                 break;
         }
     }

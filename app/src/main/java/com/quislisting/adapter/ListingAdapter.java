@@ -67,7 +67,7 @@ public class ListingAdapter extends BaseAdapter {
         holder.listingTitle.setText(baseListings.get(position).getTitle());
         holder.listingLocation.setText(getListingLocation(baseListings.get(position)
                 .getDlLocations()));
-        holder.listingDate.setText(baseListings.get(position).getCreated());
+        holder.listingDate.setText(StringUtils.convertLongTimestampToString(baseListings.get(position).getCreated()));
 
         return convertView;
     }

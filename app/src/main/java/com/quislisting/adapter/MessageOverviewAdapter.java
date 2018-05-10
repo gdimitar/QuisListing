@@ -1,6 +1,6 @@
 package com.quislisting.adapter;
 
-import android.app.Activity;
+import android.content.Context;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -17,12 +17,12 @@ import java.util.List;
 
 public class MessageOverviewAdapter extends BaseAdapter {
 
-    private final Activity context;
+    private final Context context;
     private final List<Message> messages;
     private final String userId;
     private MessageOverviewAdapter.ViewHolder holder;
 
-    public MessageOverviewAdapter(final Activity context, final List<Message> messages,
+    public MessageOverviewAdapter(final Context context, final List<Message> messages,
                                   final String userId) {
         this.context = context;
         this.messages = messages;
@@ -78,7 +78,7 @@ public class MessageOverviewAdapter extends BaseAdapter {
 
     private void setAlignment(final ViewHolder holder, final boolean isMe) {
         if (!isMe) {
-            holder.contentWithBG.setBackgroundResource(R.drawable.in_message);
+//            holder.contentWithBG.setBackgroundResource(R.drawable.in_message);
 
             LinearLayout.LayoutParams layoutParams =
                     (LinearLayout.LayoutParams) holder.contentWithBG.getLayoutParams();
@@ -100,7 +100,7 @@ public class MessageOverviewAdapter extends BaseAdapter {
             layoutParams.gravity = Gravity.END;
             holder.txtInfo.setLayoutParams(layoutParams);
         } else {
-            holder.contentWithBG.setBackgroundResource(R.drawable.out_message);
+//            holder.contentWithBG.setBackgroundResource(R.drawable.out_message);
 
             LinearLayout.LayoutParams layoutParams =
                     (LinearLayout.LayoutParams) holder.contentWithBG.getLayoutParams();

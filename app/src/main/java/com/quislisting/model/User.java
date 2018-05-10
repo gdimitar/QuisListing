@@ -1,22 +1,38 @@
 package com.quislisting.model;
 
+import com.google.gson.annotations.SerializedName;
+
 import java.util.Set;
 
 public class User {
 
+    @SerializedName("id")
     private Long id;
+    @SerializedName("login")
     private String login;
+    @SerializedName("firstName")
     private String firstName;
+    @SerializedName("lastName")
     private String lastName;
+    @SerializedName("email")
     private String email;
+    @SerializedName("imageUrl")
     private String imageUrl;
+    @SerializedName("activated")
     private boolean activated = false;
+    @SerializedName("langKey")
     private String langKey;
+    @SerializedName("updates")
     private Boolean updates;
+    @SerializedName("createdBy")
     private String createdBy;
+    @SerializedName("createdDate")
     private String createdDate;
+    @SerializedName("lastModifiedBy")
     private String lastModifiedBy;
+    @SerializedName("lastModifiedDate")
     private String lastModifiedDate;
+    @SerializedName("authorities")
     private Set<String> authorities;
 
     public Long getId() {

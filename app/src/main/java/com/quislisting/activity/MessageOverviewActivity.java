@@ -2,8 +2,10 @@ package com.quislisting.activity;
 
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.view.MenuItem;
@@ -15,14 +17,13 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.quislisting.QuisListingApplication;
 import com.quislisting.R;
 import com.quislisting.adapter.MessageOverviewAdapter;
 import com.quislisting.model.Message;
-import com.quislisting.task.AsyncCollectionResponse;
-import com.quislisting.task.AsyncObjectResponse;
-import com.quislisting.task.RestRouter;
-import com.quislisting.task.impl.HttpGetMessagesRequestTask;
-import com.quislisting.task.impl.HttpSendMessageRequestTask;
+import com.quislisting.model.request.MessageRequest;
+import com.quislisting.retrofit.APIInterface;
+import com.quislisting.retrofit.impl.APIClient;
 import com.quislisting.util.CollectionUtils;
 import com.quislisting.util.FieldValidationUtils;
 import com.quislisting.util.StringUtils;
@@ -32,11 +33,14 @@ import java.util.Collection;
 
 import butterknife.Bind;
 import butterknife.ButterKnife;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
-public class MessageOverviewActivity extends AppCompatActivity implements AsyncCollectionResponse<Message>,
-        AsyncObjectResponse<Integer>, View.OnClickListener {
+public class MessageOverviewActivity extends AppCompatActivity implements View.OnClickListener {
 
     private String idToken = null;
+    private String listingId = null;
 
     private ProgressDialog progressDialog;
 
@@ -44,6 +48,8 @@ public class MessageOverviewActivity extends AppCompatActivity implements AsyncC
     EditText messageEdit;
     @Bind(R.id.chatSendButton)
     ImageButton chatSendButton;
+
+    private APIInterface apiInterface;
 
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
@@ -55,7 +61,7 @@ public class MessageOverviewActivity extends AppCompatActivity implements AsyncC
 
         ButterKnife.bind(this);
 
-        final String listingId = getIntent().getStringExtra("listingId");
+        listingId = getIntent().getStringExtra("listingId");
         idToken = getIntent().getStringExtra("idToken");
 
         chatSendButton.setOnClickListener(this);
@@ -67,11 +73,38 @@ public class MessageOverviewActivity extends AppCompatActivity implements AsyncC
             progressDialog.show();
             progressDialog.setCancelable(false);
 
-            final HttpGetMessagesRequestTask getMessagesRequestTask =
-                    new HttpGetMessagesRequestTask();
-            getMessagesRequestTask.delegate = this;
-            getMessagesRequestTask.execute(String.format(RestRouter.MessageCenter.GET_MESSAGE,
-                    listingId), idToken);
+            apiInterface = APIClient.getClient().create(APIInterface.class);
+
+            final Call<Collection<Message>> getMessagesCall = apiInterface.getMessages("Bearer " + idToken);
+            getMessagesCall.enqueue(new Callback<Collection<Message>>() {
+                @Override
+                public void onResponse(final Call<Collection<Message>> call,
+                                       final Response<Collection<Message>> response) {
+                    if (response.isSuccessful() && CollectionUtils.isNotEmpty(response.body())) {
+                        final ListView listView = (ListView) findViewById(R.id.conversation);
+                        final String userId = getIntent().getStringExtra("userId");
+                        final MessageOverviewAdapter messageOverviewAdapter = new MessageOverviewAdapter(getApplicationContext(),
+                                new ArrayList<>(response.body()), userId);
+                        listView.setVisibility(View.VISIBLE);
+                        listView.setAdapter(messageOverviewAdapter);
+                    } else {
+                        final TextView noMessageText = (TextView) findViewById(R.id.noMessageText);
+                        noMessageText.setVisibility(View.VISIBLE);
+                        progressDialog.dismiss();
+                        Toast.makeText(getApplicationContext(), getString(R.string.retrievemessageerror),
+                                Toast.LENGTH_SHORT).show();
+                    }
+
+                    progressDialog.dismiss();
+                }
+
+                @Override
+                public void onFailure(final Call<Collection<Message>> call, final Throwable t) {
+                    call.cancel();
+                    Toast.makeText(getApplicationContext(), getString(R.string.noconnection),
+                            Toast.LENGTH_SHORT).show();
+                }
+            });
         }
     }
 
@@ -95,46 +128,44 @@ public class MessageOverviewActivity extends AppCompatActivity implements AsyncC
     }
 
     @Override
-    public void processFinish(final Collection<Message> messages) {
-        if (CollectionUtils.isNotEmpty(messages)) {
-            final ListView listView = (ListView) findViewById(R.id.conversation);
-            final String userId = getIntent().getStringExtra("userId");
-            final MessageOverviewAdapter messageOverviewAdapter = new MessageOverviewAdapter(this,
-                    new ArrayList<>(messages), userId);
-            listView.setVisibility(View.VISIBLE);
-            listView.setAdapter(messageOverviewAdapter);
-        } else {
-            final TextView noMessageText = (TextView) findViewById(R.id.noMessageText);
-            noMessageText.setVisibility(View.VISIBLE);
-        }
-        progressDialog.dismiss();
-    }
-
-    @Override
-    public void processFinish(final Integer result) {
-        if (result != null && result == 200) {
-            Toast.makeText(this, getString(R.string.messagesent),
-                    Toast.LENGTH_SHORT).show();
-            showReloadActivityDialog();
-        } else
-            Toast.makeText(this, getString(R.string.messagenotsent),
-                    Toast.LENGTH_LONG).show();
-    }
-
-    @Override
     public void onClick(final View view) {
         switch (view.getId()) {
             case R.id.chatSendButton:
                 if (!validateInputElements()) {
                     return;
                 } else {
-                    final HttpSendMessageRequestTask httpSendMessageRequestTask =
-                            new HttpSendMessageRequestTask();
-                    httpSendMessageRequestTask.delegate = this;
-                    httpSendMessageRequestTask.execute(String.format(RestRouter.MessageCenter.
-                                    GET_MESSAGE, getIntent().getStringExtra("messageOverviewId")),
-                            messageEdit.getText().toString(), idToken);
-                    showReloadActivityDialog();
+                    final SharedPreferences sharedPreferences = getSharedPreferences("com.quislisting",
+                            Context.MODE_PRIVATE);
+                    final String language = sharedPreferences.getString("language", null);
+
+                    final String senderName = ((QuisListingApplication) this.getApplication()).getName();
+                    final String senderEmail = ((QuisListingApplication) this.getApplication()).getEmail();
+
+                    final MessageRequest messageRequest =
+                            new MessageRequest(senderName, senderEmail,
+                                    messageEdit.getText().toString(), language);
+                    final Call<Integer> sendMessageCall = apiInterface.sendMessage(listingId,
+                            messageRequest);
+                    sendMessageCall.enqueue(new Callback<Integer>() {
+                        @Override
+                        public void onResponse(final Call<Integer> call, final Response<Integer> response) {
+                            if (response.isSuccessful()) {
+                                Toast.makeText(getApplicationContext(), getString(R.string.messagesent),
+                                        Toast.LENGTH_SHORT).show();
+                                showReloadActivityDialog();
+                            } else {
+                                Toast.makeText(getApplicationContext(), getString(R.string.messagenotsent),
+                                        Toast.LENGTH_SHORT).show();
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(final Call<Integer> call, final Throwable t) {
+                            call.cancel();
+                            Toast.makeText(getApplicationContext(), getString(R.string.noconnection),
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    });
                 }
                 break;
         }

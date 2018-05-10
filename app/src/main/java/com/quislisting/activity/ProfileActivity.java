@@ -3,8 +3,6 @@ package com.quislisting.activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
-import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.WindowManager;
@@ -12,28 +10,26 @@ import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.ScrollView;
 import android.widget.Spinner;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.quislisting.R;
 import com.quislisting.model.User;
-import com.quislisting.task.AbstractGetResultFromPostTask;
-import com.quislisting.task.AsyncObjectResponse;
-import com.quislisting.task.RestRouter;
-import com.quislisting.task.impl.HttpGetUserRequestTask;
+import com.quislisting.model.request.UpdateUserRequest;
+import com.quislisting.retrofit.APIInterface;
+import com.quislisting.retrofit.impl.APIClient;
 import com.quislisting.util.FieldValidationUtils;
-import com.quislisting.util.JsonObjectPopulator;
 import com.quislisting.util.StringUtils;
-
-import org.json.JSONObject;
-
-import java.util.concurrent.ExecutionException;
 
 import butterknife.Bind;
 import butterknife.ButterKnife;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
-public class ProfileActivity extends AppCompatActivity implements AsyncObjectResponse<User>,
-        View.OnClickListener, AdapterView.OnItemSelectedListener {
+public class ProfileActivity extends AppCompatActivity implements View.OnClickListener, AdapterView.OnItemSelectedListener {
 
     private static final String TAG = ProfileActivity.class.getSimpleName();
 
@@ -49,8 +45,12 @@ public class ProfileActivity extends AppCompatActivity implements AsyncObjectRes
     Spinner language;
     @Bind(R.id.save)
     Button save;
+    @Bind(R.id.profilePreferencesView)
+    ScrollView scrollView;
 
     private String idToken = null;
+
+    private APIInterface apiInterface;
 
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
@@ -60,22 +60,48 @@ public class ProfileActivity extends AppCompatActivity implements AsyncObjectRes
         setContentView(R.layout.activity_profile);
         setTitle(getString(R.string.profileactivitytitle));
 
-        // create toolbar
-        final Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
-
-        ButterKnife.bind(this);
-
-        save.setOnClickListener(this);
-
-        language.setOnItemSelectedListener(this);
-
         idToken = getIntent().getStringExtra("idToken");
+
         if (StringUtils.isNotEmpty(idToken)) {
-            final HttpGetUserRequestTask getUserRequestTask =
-                    new HttpGetUserRequestTask();
-            getUserRequestTask.delegate = this;
-            getUserRequestTask.execute(RestRouter.User.GET_USER, idToken);
+            ButterKnife.bind(this);
+
+            save.setOnClickListener(this);
+
+            language.setOnItemSelectedListener(this);
+
+            apiInterface = APIClient.getClient().create(APIInterface.class);
+            final Call<User> getUserCall = apiInterface.getUser("Bearer " + idToken);
+            getUserCall.enqueue(new Callback<User>() {
+                @Override
+                public void onResponse(final Call<User> call, final Response<User> response) {
+                    if (response.isSuccessful()) {
+                        email.setText(response.body().getEmail());
+                        firstName.setText(response.body().getFirstName());
+                        lastName.setText(response.body().getLastName());
+                        receiveUpdates.setChecked(response.body().getUpdates());
+                        language.setSelection(setLanguageByPosition(response.body().getLangKey()));
+                    } else {
+                        Toast.makeText(getApplicationContext(), getString(R.string.retrieveusererror),
+                                Toast.LENGTH_SHORT).show();
+                    }
+                }
+
+                @Override
+                public void onFailure(final Call<User> call, final Throwable t) {
+                    call.cancel();
+                    Toast.makeText(getApplicationContext(), getString(R.string.noconnection),
+                            Toast.LENGTH_SHORT).show();
+                }
+            });
+        } else {
+            scrollView.removeAllViews();
+            setContentView(R.layout.empty_layout);
+
+            Toast.makeText(getApplicationContext(), getString(R.string.retrieveprofileprefencesfailed),
+                    Toast.LENGTH_SHORT).show();
+
+            final TextView emptyText = (TextView) findViewById(R.id.emptyText);
+            emptyText.setText(getString(R.string.preferencesnotavailable));
         }
     }
 
@@ -88,26 +114,33 @@ public class ProfileActivity extends AppCompatActivity implements AsyncObjectRes
                 } else {
                     final String idToken = getIntent().getStringExtra("idToken");
                     if (StringUtils.isNotEmpty(idToken)) {
-                        final UpdateUserTask updateUserTask =
-                                new UpdateUserTask(receiveUpdates.isChecked());
-                        updateUserTask.execute(RestRouter.User.UPDATE_USER,
-                                email.getText().toString(), firstName.getText().toString(),
-                                lastName.getText().toString(), language.getSelectedItem().toString(),
-                                idToken);
+                        final UpdateUserRequest updateUserRequest =
+                                new UpdateUserRequest(email.getText().toString(),
+                                        firstName.getText().toString(), lastName.getText().toString(),
+                                        email.getText().toString(), true,
+                                        getLanguage(language.getSelectedItemId()));
+                        final Call<String> updateUserCall = apiInterface.updateUser(updateUserRequest,
+                                "Bearer " + idToken);
 
-                        try {
-                            final Integer result = updateUserTask.get();
-                            if (result != null && result == 200) {
-                                Toast.makeText(this, getString(R.string.profileupdated),
-                                        Toast.LENGTH_LONG).show();
-                            } else
-                                Toast.makeText(this, getString(R.string.profilenotupdated),
-                                        Toast.LENGTH_LONG).show();
-                        } catch (final InterruptedException e) {
-                            Log.e(TAG, "InterruptedException during the HTTP request.", e);
-                        } catch (final ExecutionException e) {
-                            Log.e(TAG, "ExecutionException during the HTTP request.", e);
-                        }
+                        updateUserCall.enqueue(new Callback<String>() {
+                            @Override
+                            public void onResponse(final Call<String> call, final Response<String> response) {
+                                if (response.isSuccessful()) {
+                                    Toast.makeText(getApplicationContext(), getString(R.string.profileupdated),
+                                            Toast.LENGTH_SHORT).show();
+                                } else {
+                                    Toast.makeText(getApplicationContext(), getString(R.string.profilenotupdated),
+                                            Toast.LENGTH_SHORT).show();
+                                }
+                            }
+
+                            @Override
+                            public void onFailure(final Call<String> call, final Throwable t) {
+                                call.cancel();
+                                Toast.makeText(getApplicationContext(), getString(R.string.noconnection),
+                                        Toast.LENGTH_SHORT).show();
+                            }
+                        });
                     }
                 }
                 break;
@@ -123,17 +156,6 @@ public class ProfileActivity extends AppCompatActivity implements AsyncObjectRes
     @Override
     public void onNothingSelected(final AdapterView<?> parent) {
 
-    }
-
-    @Override
-    public void processFinish(final User user) {
-        if (user != null) {
-            email.setText(user.getEmail());
-            firstName.setText(user.getFirstName());
-            lastName.setText(user.getLastName());
-            receiveUpdates.setChecked(user.getUpdates());
-            language.setSelection(setLanguageByPosition(user.getLangKey()));
-        }
     }
 
     @Override
@@ -194,38 +216,15 @@ public class ProfileActivity extends AppCompatActivity implements AsyncObjectRes
         return 0;
     }
 
-    static class UpdateUserTask extends AbstractGetResultFromPostTask {
-
-        private final boolean receiveUpdates;
-
-        public UpdateUserTask(final boolean receiveUpdates) {
-            this.receiveUpdates = receiveUpdates;
+    private String getLanguage(final long languageId) {
+        switch ((int) languageId) {
+            case 0:
+                return "en";
+            case 1:
+                return "bg";
+            case 2:
+                return "ro";
         }
-
-        @Override
-        protected Integer doInBackground(final String... params) {
-            return super.doInBackground(params);
-        }
-
-        @Override
-        protected void onPostExecute(final Integer result) {
-            super.onPostExecute(result);
-        }
-
-        @Override
-        protected JSONObject prepareJsonObject(final String... params) {
-            return JsonObjectPopulator.prepareUserJson(params[1], params[2], params[3],
-                    params[4], receiveUpdates, false, null);
-        }
-
-        @Override
-        protected boolean includedBearerHeader() {
-            return true;
-        }
-
-        @Override
-        protected String getIdToken(final String... params) {
-            return params[5];
-        }
+        return "en";
     }
 }

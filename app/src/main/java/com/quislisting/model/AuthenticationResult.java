@@ -1,7 +1,10 @@
 package com.quislisting.model;
 
+import com.google.gson.annotations.SerializedName;
+
 public class AuthenticationResult {
 
+    @SerializedName("id_token")
     private String id_token;
 
     public String getId_token() {

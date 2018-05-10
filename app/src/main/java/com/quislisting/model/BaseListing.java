@@ -1,21 +1,35 @@
 package com.quislisting.model;
 
+import com.google.gson.annotations.SerializedName;
+
 import java.math.BigDecimal;
 import java.util.List;
 
 public class BaseListing {
 
+    @SerializedName("id")
     private Long id;
+    @SerializedName("title")
     private String title;
+    @SerializedName("name")
     private String name;
-    private String created;
-    private String modified;
+    @SerializedName("created")
+    private Long created;
+    @SerializedName("modified")
+    private Long modified;
+    @SerializedName("languageCode")
     private String languageCode;
+    @SerializedName("sourceLanguageCode")
     private String sourceLanguageCode;
+    @SerializedName("featuredAttachment")
     private Attachment featuredAttachment;
+    @SerializedName("status")
     private Status status;
+    @SerializedName("price")
     private BigDecimal price;
+    @SerializedName("priceCurrency")
     private String priceCurrency;
+    @SerializedName("dlLocations")
     private List<ListingLocation> dlLocations;
 
     public Long getId() {
@@ -42,19 +56,19 @@ public class BaseListing {
         this.name = name;
     }
 
-    public String getCreated() {
+    public Long getCreated() {
         return created;
     }
 
-    public void setCreated(final String created) {
+    public void setCreated(final Long created) {
         this.created = created;
     }
 
-    public String getModified() {
+    public Long getModified() {
         return modified;
     }
 
-    public void setModified(final String modified) {
+    public void setModified(final Long modified) {
         this.modified = modified;
     }
 

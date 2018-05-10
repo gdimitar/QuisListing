@@ -1,32 +1,13 @@
 package com.quislisting.model;
 
+import com.google.gson.annotations.SerializedName;
+
 public class StringTranslation {
 
+    @SerializedName("id")
     private Long id;
+    @SerializedName("languageCode")
     private String languageCode;
+    @SerializedName("value")
     private String value;
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(final Long id) {
-        this.id = id;
-    }
-
-    public String getLanguageCode() {
-        return languageCode;
-    }
-
-    public void setLanguageCode(final String languageCode) {
-        this.languageCode = languageCode;
-    }
-
-    public String getValue() {
-        return value;
-    }
-
-    public void setValue(final String value) {
-        this.value = value;
-    }
 }

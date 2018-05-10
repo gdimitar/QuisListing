@@ -1,7 +1,7 @@
 package com.quislisting.util;
 
+import android.content.Context;
 import android.support.design.widget.TextInputLayout;
-import android.support.v7.app.AppCompatActivity;
 
 public class TextInputLayoutUtils {
 
@@ -9,7 +9,7 @@ public class TextInputLayoutUtils {
 
     }
 
-    public static TextInputLayout createTextInputLayout(final AppCompatActivity activity,
+    public static TextInputLayout createTextInputLayout(final Context context,
                                                         final int width, final int height,
                                                         final int marginTop, final int marginBottom) {
         final TextInputLayout.LayoutParams textInputLayoutLayoutParams =
@@ -17,7 +17,7 @@ public class TextInputLayoutUtils {
         textInputLayoutLayoutParams.topMargin = marginTop;
         textInputLayoutLayoutParams.bottomMargin = marginBottom;
 
-        final TextInputLayout textInputLayout = new TextInputLayout(activity);
+        final TextInputLayout textInputLayout = new TextInputLayout(context);
         textInputLayout.setLayoutParams(textInputLayoutLayoutParams);
 
         return textInputLayout;

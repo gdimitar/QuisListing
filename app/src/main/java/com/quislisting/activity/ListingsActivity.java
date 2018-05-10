@@ -9,13 +9,13 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.quislisting.R;
 import com.quislisting.adapter.ListingAdapter;
 import com.quislisting.model.Listing;
-import com.quislisting.task.AsyncCollectionResponse;
-import com.quislisting.task.RestRouter;
-import com.quislisting.task.impl.HttpGetListingsRequestTask;
+import com.quislisting.retrofit.APIInterface;
+import com.quislisting.retrofit.impl.APIClient;
 import com.quislisting.util.CollectionUtils;
 import com.quislisting.util.StringUtils;
 
@@ -23,8 +23,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-public class ListingsActivity extends AppCompatActivity implements AsyncCollectionResponse<Listing>,
-        View.OnClickListener {
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
+public class ListingsActivity extends AppCompatActivity implements View.OnClickListener {
 
     private String idToken = null;
 
@@ -45,41 +48,45 @@ public class ListingsActivity extends AppCompatActivity implements AsyncCollecti
                 Context.MODE_PRIVATE);
         final String selectedLanguage = sharedPreferences.getString("language", null);
 
-        if (StringUtils.isNotEmpty(idToken) && StringUtils.isNotEmpty(selectedLanguage)) {
-            final HttpGetListingsRequestTask getListingsRequestTask =
-                    new HttpGetListingsRequestTask();
-            getListingsRequestTask.delegate = this;
-            getListingsRequestTask.execute(String.format(RestRouter.Listing.GET_LISTINGS,
-                    selectedLanguage), idToken);
-        }
-    }
+        final APIInterface apiInterface = APIClient.getClient().create(APIInterface.class);
 
-    @Override
-    public void processFinish(final Collection<Listing> listings) {
-        if (CollectionUtils.isNotEmpty(listings)) {
-            final List<Listing> listingList = new ArrayList<>(listings);
-            final ListView listView = (ListView) findViewById(R.id.listView);
-            final ListingAdapter listingAdapter = new ListingAdapter(this,
-                    new ArrayList<>(listings));
-            listView.setVisibility(View.VISIBLE);
-            listView.setAdapter(listingAdapter);
+        final Call<Collection<Listing>> getListingsCall = apiInterface.getListings(selectedLanguage,
+                "Bearer " + idToken);
 
-            listView.setOnItemClickListener((parent, view, position, id) -> {
-                final Intent intent = new Intent(this,
-                        ListingDetailsActivity.class);
-                intent.putExtra("listingId", listingList.get(position).getId().toString());
-                intent.putExtra("idToken", this.idToken);
-                startActivity(intent);
-            });
-        } else {
-            final TextView noListingText = (TextView) findViewById(R.id.noListingsText);
-            final TextView addListingText = (TextView) findViewById(R.id.addListingText);
+        getListingsCall.enqueue(new Callback<Collection<Listing>>() {
+            @Override
+            public void onResponse(final Call<Collection<Listing>> call,
+                                   final Response<Collection<Listing>> response) {
+                if (response.isSuccessful() && CollectionUtils.isNotEmpty(response.body())) {
+                    final List<Listing> listingList = new ArrayList<>(response.body());
+                    final ListView listView = (ListView) findViewById(R.id.listView);
+                    final ListingAdapter listingAdapter = new ListingAdapter(getApplicationContext(),
+                            new ArrayList<>(response.body()));
+                    listView.setVisibility(View.VISIBLE);
+                    listView.setAdapter(listingAdapter);
 
-            noListingText.setVisibility(View.VISIBLE);
-            addListingText.setVisibility(View.VISIBLE);
+                    listView.setOnItemClickListener((parent, view, position, id) -> {
+                        final Intent intent = new Intent(getApplicationContext(),
+                                ListingDetailsActivity.class);
+                        intent.putExtra("listingId", listingList.get(position).getId().toString());
+                        intent.putExtra("idToken", idToken);
+                        startActivity(intent);
+                    });
+                } else {
+                    Toast.makeText(getApplicationContext(), getString(R.string.nolistings),
+                            Toast.LENGTH_SHORT).show();
+                    handleError();
+                }
+            }
 
-            addListingText.setOnClickListener(this);
-        }
+            @Override
+            public void onFailure(final Call<Collection<Listing>> call, final Throwable t) {
+                call.cancel();
+                Toast.makeText(getApplicationContext(), getString(R.string.noconnection),
+                        Toast.LENGTH_SHORT).show();
+                handleError();
+            }
+        });
     }
 
     @Override
@@ -109,5 +116,15 @@ public class ListingsActivity extends AppCompatActivity implements AsyncCollecti
                 startActivity(intent);
                 break;
         }
+    }
+
+    private void handleError() {
+        setContentView(R.layout.empty_listings_layout);
+
+        final TextView addListingText = (TextView) findViewById(R.id.addListingText);
+        addListingText.setOnClickListener(view -> {
+            final Intent intent = new Intent(getApplicationContext(), AddListingActivity.class);
+            startActivity(intent);
+        });
     }
 }

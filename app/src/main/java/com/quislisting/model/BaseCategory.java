@@ -1,9 +1,14 @@
 package com.quislisting.model;
 
+import com.google.gson.annotations.SerializedName;
+
 public class BaseCategory {
 
+    @SerializedName("id")
     private Long id;
+    @SerializedName("name")
     private String name;
+    @SerializedName("parentId")
     private Long parentId;
 
     public BaseCategory(final String name) {

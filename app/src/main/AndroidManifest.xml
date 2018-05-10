@@ -5,6 +5,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
+        android:name=".QuisListingApplication"
         android:allowBackup="false"
         android:configChanges="orientation"
         android:icon="@mipmap/quis"
@@ -82,7 +83,8 @@
         </activity>
         <activity
             android:name=".activity.ProfileActivity"
-            android:theme="@style/AppTheme.NoActionBar">
+            android:theme="@style/AppTheme.NoActionBar"
+            android:windowSoftInputMode="adjustPan|stateAlwaysVisible">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
 

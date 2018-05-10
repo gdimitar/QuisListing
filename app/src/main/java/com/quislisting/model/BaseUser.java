@@ -1,9 +1,14 @@
 package com.quislisting.model;
 
+import com.google.gson.annotations.SerializedName;
+
 public class BaseUser {
 
+    @SerializedName("id")
     private Long id;
+    @SerializedName("firstName")
     private String firstName;
+    @SerializedName("lastName")
     private String lastName;
 
     public Long getId() {

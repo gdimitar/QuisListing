@@ -1,9 +1,14 @@
 package com.quislisting.model;
 
+import com.google.gson.annotations.SerializedName;
+
 public class ListingLocation {
 
+    @SerializedName("parent")
     private ListingLocation parent;
+    @SerializedName("location")
     private String location;
+    @SerializedName("id")
     private Long id;
 
     public ListingLocation(final String location) {

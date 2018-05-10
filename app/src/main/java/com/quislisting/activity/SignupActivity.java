@@ -31,9 +31,9 @@ import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.SignInButton;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.quislisting.R;
-import com.quislisting.task.AsyncObjectResponse;
-import com.quislisting.task.RestRouter;
-import com.quislisting.task.impl.HttpRegisterUserRequestTask;
+import com.quislisting.model.request.RegisterUserRequest;
+import com.quislisting.retrofit.APIInterface;
+import com.quislisting.retrofit.impl.APIClient;
 import com.quislisting.util.FieldValidationUtils;
 import com.quislisting.util.PasswordStrengthUtil;
 import com.quislisting.util.StringUtils;
@@ -52,9 +52,10 @@ import java.util.Arrays;
 
 import butterknife.Bind;
 import butterknife.ButterKnife;
+import retrofit2.Call;
 
 public class SignupActivity extends AppCompatActivity implements View.OnClickListener,
-        AsyncObjectResponse<Integer>, GoogleApiClient.OnConnectionFailedListener {
+        GoogleApiClient.OnConnectionFailedListener {
 
     private static final int SIGN_IN_CODE = 777;
 
@@ -184,14 +185,14 @@ public class SignupActivity extends AppCompatActivity implements View.OnClickLis
                             @Override
                             public void onCancel() {
                                 Toast.makeText(SignupActivity.this,
-                                        R.string.facebookconnectioncancelled, Toast.LENGTH_LONG)
+                                        R.string.facebookconnectioncancelled, Toast.LENGTH_SHORT)
                                         .show();
                             }
 
                             @Override
                             public void onError(final FacebookException exception) {
                                 Toast.makeText(SignupActivity.this,
-                                        R.string.facebookconnectionerror, Toast.LENGTH_LONG).show();
+                                        R.string.facebookconnectionerror, Toast.LENGTH_SHORT).show();
                             }
                         });
 
@@ -213,7 +214,7 @@ public class SignupActivity extends AppCompatActivity implements View.OnClickLis
                     @Override
                     public void failure(final TwitterException exception) {
                         Toast.makeText(SignupActivity.this, R.string.twitterconnectionerror,
-                                Toast.LENGTH_LONG).show();
+                                Toast.LENGTH_SHORT).show();
                     }
                 });
                 break;
@@ -226,15 +227,6 @@ public class SignupActivity extends AppCompatActivity implements View.OnClickLis
                 final Intent googleIntent = Auth.GoogleSignInApi.getSignInIntent(googleApiClient);
                 startActivityForResult(googleIntent, SIGN_IN_CODE);
                 break;
-        }
-    }
-
-    @Override
-    public void processFinish(final Integer result) {
-        if (result != null && result == 201) {
-            onSignupSuccess();
-        } else {
-            onSignupFailed();
         }
     }
 
@@ -298,7 +290,7 @@ public class SignupActivity extends AppCompatActivity implements View.OnClickLis
         if (result.isSuccess()) {
             goMainScreen();
         } else {
-            Toast.makeText(this, R.string.googleconnectionerror, Toast.LENGTH_LONG).show();
+            Toast.makeText(this, R.string.googleconnectionerror, Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -332,16 +324,32 @@ public class SignupActivity extends AppCompatActivity implements View.OnClickLis
                 Context.MODE_PRIVATE);
         final String language = sharedPreferences.getString("language", null);
 
-        final HttpRegisterUserRequestTask registerUserRequestTask =
-                new HttpRegisterUserRequestTask();
-        registerUserRequestTask.delegate = this;
-        registerUserRequestTask.execute(RestRouter.User.REGISTER_USER, emailText, firstNameText,
-                lastNameText, language, passwordText);
+        final APIInterface apiInterface = APIClient.getClient().create(APIInterface.class);
+
+        final RegisterUserRequest registerUserRequest = new RegisterUserRequest(emailText, firstNameText,
+                lastNameText, emailText, true, language, passwordText);
+        final Call<Integer> registerUserCall = apiInterface.registerUser(registerUserRequest);
+
+        registerUserCall.enqueue(new Callback<Integer>() {
+            @Override
+            public void success(final Result<Integer> result) {
+                if (result != null && result.data != null && result.data == 201) {
+                    onSignupSuccess();
+                } else {
+                    onSignupFailed();
+                }
+            }
+
+            @Override
+            public void failure(final TwitterException exception) {
+                Toast.makeText(getBaseContext(), getString(R.string.noconnection), Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
 
     public void onSignupSuccess() {
-        Toast.makeText(getBaseContext(), getString(R.string.loginsuccessful), Toast.LENGTH_LONG).show();
+        Toast.makeText(getBaseContext(), getString(R.string.loginsuccessful), Toast.LENGTH_SHORT).show();
 
         register.setEnabled(true);
         progressDialog.dismiss();
@@ -350,7 +358,7 @@ public class SignupActivity extends AppCompatActivity implements View.OnClickLis
     }
 
     public void onSignupFailed() {
-        Toast.makeText(getBaseContext(), getString(R.string.loginfailed), Toast.LENGTH_LONG).show();
+        Toast.makeText(getBaseContext(), getString(R.string.loginfailed), Toast.LENGTH_SHORT).show();
 
         progressDialog.dismiss();
         register.setEnabled(true);

@@ -3,13 +3,10 @@ package com.quislisting.activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.AppCompatButton;
-import android.text.TextUtils;
-import android.util.Log;
 import android.view.Gravity;
 import android.view.MenuItem;
 import android.view.MotionEvent;
@@ -20,16 +17,14 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.quislisting.R;
 import com.quislisting.adapter.NothingSelectedSpinnerAdapter;
-import com.quislisting.converter.JsonConverter;
 import com.quislisting.dto.LocationDTO;
 import com.quislisting.model.BaseCategory;
-import com.quislisting.task.AsyncCollectionResponse;
-import com.quislisting.task.RestRouter;
-import com.quislisting.task.handler.HttpHandler;
-import com.quislisting.task.impl.HttpGetCategoriesRequestTask;
+import com.quislisting.retrofit.APIInterface;
+import com.quislisting.retrofit.impl.APIClient;
 import com.quislisting.util.BaseCategoryFilterUtil;
 import com.quislisting.util.ButtonUtils;
 import com.quislisting.util.CollectionUtils;
@@ -39,17 +34,17 @@ import com.quislisting.util.SpinnerUtils;
 import com.quislisting.util.StringUtils;
 import com.quislisting.util.TextViewUtils;
 
-import java.io.IOException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 import butterknife.Bind;
 import butterknife.ButterKnife;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
-public class SearchActivity extends AppCompatActivity implements AsyncCollectionResponse<BaseCategory> {
+public class SearchActivity extends AppCompatActivity {
 
     private static final String TAG = SearchActivity.class.getSimpleName();
 
@@ -68,6 +63,8 @@ public class SearchActivity extends AppCompatActivity implements AsyncCollection
 
     private Spinner categorySpinner, countrySpinner, stateSpinner, citySpinner;
 
+    private APIInterface apiInterface;
+
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
@@ -77,53 +74,75 @@ public class SearchActivity extends AppCompatActivity implements AsyncCollection
 
         ButterKnife.bind(this);
 
-        final HttpGetCategoriesRequestTask getCategoriesRequestTask =
-                new HttpGetCategoriesRequestTask();
-        getCategoriesRequestTask.delegate = this;
-        getCategoriesRequestTask.execute(RestRouter.Category.GET_ALL_CATEGORIES);
-    }
+        apiInterface = APIClient.getClient().create(APIInterface.class);
 
-    @Override
-    public void processFinish(final Collection<BaseCategory> categories) {
-        if (CollectionUtils.isNotEmpty(categories)) {
-            parentCategories = BaseCategoryFilterUtil.filterParentCategories(categories);
-            categoriesWithParent = BaseCategoryFilterUtil.filterChildCategories(categories, null);
+        final Call<Collection<BaseCategory>> baseCategoriesCall = apiInterface.getBaseCategories();
 
-            categorySpinner = SpinnerUtils.createSpinner(this, R.id.category,
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
-                    getString(R.string.category), 15, 15);
-            searchLayout.addView(categorySpinner);
+        baseCategoriesCall.enqueue(new Callback<Collection<BaseCategory>>() {
+            @Override
+            public void onResponse(final Call<Collection<BaseCategory>> call,
+                                   final Response<Collection<BaseCategory>> response) {
+                if (response.isSuccessful() && CollectionUtils.isNotEmpty(response.body())) {
+                    parentCategories = BaseCategoryFilterUtil.filterParentCategories(response.body());
+                    categoriesWithParent = BaseCategoryFilterUtil.filterChildCategories(response.body(), null);
 
-            parentCategories.add(0, new BaseCategory(getString(R.string.all)));
-            CustomArrayAdapterUtil.prepareCustomCategoryArrayAdapter(this, parentCategories,
-                    R.layout.category_spinner_row_nothing_selected, categorySpinner);
-            categorySpinner.setOnItemSelectedListener(categoryListener);
-            categorySpinner.setOnTouchListener(categoryOnTouchListener);
-        } else {
-            noSearchCriteria = TextViewUtils.createTextView(this, LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT, R.id.no_search_criteria, R.string.nosearchcriteriaavailable);
-            noSearchCriteria.setText(getString(R.string.nosearchcriteriaavailable));
-            noSearchCriteria.setTextSize(16f);
-            noSearchCriteria.setGravity(Gravity.CENTER);
-            searchLayout.addView(noSearchCriteria);
-        }
+                    categorySpinner = SpinnerUtils.createSpinner(getApplicationContext(), R.id.category,
+                            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
+                            getString(R.string.category), 15, 15);
+                    searchLayout.addView(categorySpinner);
+
+                    parentCategories.add(0, new BaseCategory(getString(R.string.all)));
+                    CustomArrayAdapterUtil.prepareCustomCategoryArrayAdapter(getApplicationContext(), parentCategories,
+                            R.layout.category_spinner_row_nothing_selected, categorySpinner);
+                    categorySpinner.setOnItemSelectedListener(categoryListener);
+                    categorySpinner.setOnTouchListener(categoryOnTouchListener);
+                } else {
+                    Toast.makeText(getApplicationContext(), getString(R.string.retrievecategoryerror),
+                            Toast.LENGTH_SHORT).show();
+                    handleError();
+                }
+            }
+
+            @Override
+            public void onFailure(final Call<Collection<BaseCategory>> call, final Throwable t) {
+                call.cancel();
+                Toast.makeText(getApplicationContext(), getString(R.string.noconnection),
+                        Toast.LENGTH_SHORT).show();
+                handleError();
+            }
+        });
 
         final SharedPreferences sharedPreferences = getSharedPreferences("com.quislisting",
                 Context.MODE_PRIVATE);
         language = sharedPreferences.getString("language", "en");
+        final Call<Collection<LocationDTO>> getCountriesCall = apiInterface.getLocations(0L, language);
 
-        final AsyncTask<String, Void, Collection<LocationDTO>> task = new RetrieveLocationsTask()
-                .execute(String.format(RestRouter.Location.GET_ALL_LOCATIONS,
-                        0, language));
-        final List<LocationDTO> countries;
-        try {
-            countries = new ArrayList<>(task.get());
-            handleDropDownMenus(countries);
-        } catch (final InterruptedException e) {
-            Log.e(TAG, "InterruptedException during the HTTP request.", e);
-        } catch (final ExecutionException e) {
-            Log.e(TAG, "ExecutionException during the HTTP request.", e);
-        }
+        getCountriesCall.enqueue(new Callback<Collection<LocationDTO>>() {
+            @Override
+            public void onResponse(final Call<Collection<LocationDTO>> call,
+                                   final Response<Collection<LocationDTO>> response) {
+                final boolean apiResponse = response.isSuccessful() && CollectionUtils.isNotEmpty(response.body());
+                if (apiResponse) {
+                    handleDropDownMenus(response.body());
+                } else {
+                    if (noSearchCriteria == null) {
+                        handleError();
+                    }
+                    Toast.makeText(getApplicationContext(), getString(R.string.retrievelocationerror),
+                            Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(final Call<Collection<LocationDTO>> call, final Throwable t) {
+                call.cancel();
+                if (noSearchCriteria == null) {
+                    handleError();
+                }
+                Toast.makeText(getApplicationContext(), getString(R.string.retrievelocationerror),
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     @Override
@@ -208,21 +227,30 @@ public class SearchActivity extends AppCompatActivity implements AsyncCollection
                                    final long id) {
             if (position > 0 && position != 1) {
                 final LocationDTO country = (LocationDTO) countrySpinner.getItemAtPosition(position);
-                final AsyncTask<String, Void, Collection<LocationDTO>> task = new RetrieveLocationsTask()
-                        .execute(String.format(RestRouter.Location.GET_ALL_LOCATIONS,
-                                country.getId(), language));
-                List<LocationDTO> newStates = new ArrayList<>();
-                try {
-                    newStates = new ArrayList<>(task.get());
-                } catch (final InterruptedException e) {
-                    Log.e(TAG, "InterruptedException during the HTTP request.", e);
-                } catch (final ExecutionException e) {
-                    Log.e(TAG, "ExecutionException during the HTTP request.", e);
-                }
 
-                newStates.add(0, new LocationDTO(getString(R.string.all)));
-                CustomArrayAdapterUtil.prepareCustomLocationArrayAdapter(getApplicationContext(), newStates,
-                        R.layout.state_spinner_row_nothing_selected, stateSpinner);
+                final Call<Collection<LocationDTO>> getStatesCall = apiInterface.getLocations(country.getId(), language);
+                getStatesCall.enqueue(new Callback<Collection<LocationDTO>>() {
+                    @Override
+                    public void onResponse(final Call<Collection<LocationDTO>> call,
+                                           final Response<Collection<LocationDTO>> response) {
+                        if (response.isSuccessful() && CollectionUtils.isNotEmpty(response.body())) {
+                            final List<LocationDTO> newStates = new ArrayList<>(response.body());
+                            newStates.add(0, new LocationDTO(getString(R.string.all)));
+                            CustomArrayAdapterUtil.prepareCustomLocationArrayAdapter(getApplicationContext(), newStates,
+                                    R.layout.state_spinner_row_nothing_selected, stateSpinner);
+                        } else {
+                            Toast.makeText(getApplicationContext(), getString(R.string.retrievelocationerror),
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(final Call<Collection<LocationDTO>> call, final Throwable t) {
+                        call.cancel();
+                        Toast.makeText(getApplicationContext(), getString(R.string.retrieveusererror),
+                                Toast.LENGTH_SHORT).show();
+                    }
+                });
             } else if (position == 1) {
                 states.add(new LocationDTO(getString(R.string.all)));
                 CustomArrayAdapterUtil.prepareCustomLocationArrayAdapter(getApplicationContext(), states,
@@ -248,20 +276,30 @@ public class SearchActivity extends AppCompatActivity implements AsyncCollection
                                    final long id) {
             if (position > 0 && position != 1) {
                 final LocationDTO state = (LocationDTO) stateSpinner.getItemAtPosition(position);
-                final AsyncTask<String, Void, Collection<LocationDTO>> task = new RetrieveLocationsTask()
-                        .execute(String.format(RestRouter.Location.GET_ALL_LOCATIONS,
-                                state.getId(), language));
-                List<LocationDTO> newCities = new ArrayList<>();
-                try {
-                    newCities = new ArrayList<>(task.get());
-                } catch (final InterruptedException e) {
-                    Log.e(TAG, "InterruptedException during the HTTP request.", e);
-                } catch (final ExecutionException e) {
-                    Log.e(TAG, "ExecutionException during the HTTP request.", e);
-                }
-                newCities.add(0, new LocationDTO(getString(R.string.all)));
-                CustomArrayAdapterUtil.prepareCustomLocationArrayAdapter(getApplicationContext(), newCities,
-                        R.layout.city_spinner_row_nothing_selected, citySpinner);
+
+                final Call<Collection<LocationDTO>> getCitiesCall = apiInterface.getLocations(state.getId(), language);
+                getCitiesCall.enqueue(new Callback<Collection<LocationDTO>>() {
+                    @Override
+                    public void onResponse(final Call<Collection<LocationDTO>> call,
+                                           final Response<Collection<LocationDTO>> response) {
+                        if (CollectionUtils.isNotEmpty(response.body())) {
+                            final List<LocationDTO> newCities = new ArrayList<>(response.body());
+                            newCities.add(0, new LocationDTO(getString(R.string.all)));
+                            CustomArrayAdapterUtil.prepareCustomLocationArrayAdapter(getApplicationContext(), newCities,
+                                    R.layout.city_spinner_row_nothing_selected, citySpinner);
+                        } else {
+                            Toast.makeText(getApplicationContext(), getString(R.string.retrievelocationerror),
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(final Call<Collection<LocationDTO>> call, final Throwable t) {
+                        call.cancel();
+                        Toast.makeText(getApplicationContext(), getString(R.string.retrieveusererror),
+                                Toast.LENGTH_SHORT).show();
+                    }
+                });
             } else if (position == 1) {
                 citySpinner.setSelection(1);
             }
@@ -285,83 +323,38 @@ public class SearchActivity extends AppCompatActivity implements AsyncCollection
         }
     };
 
-    static class RetrieveLocationsTask extends AsyncTask<String, Void, Collection<LocationDTO>> {
+    private void handleDropDownMenus(final Collection<LocationDTO> locations) {
+        countrySpinner = SpinnerUtils.createSpinner(this, R.id.country,
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
+                getString(R.string.country), 15, 15);
+        searchLayout.addView(countrySpinner);
 
-        @Override
-        protected Collection<LocationDTO> doInBackground(final String... params) {
-            return getChildLocations(params[0]);
-        }
+        stateSpinner = SpinnerUtils.createSpinner(this, R.id.state,
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
+                getString(R.string.state), 15, 15);
+        searchLayout.addView(stateSpinner);
 
-        @Override
-        protected void onPostExecute(final Collection<LocationDTO> result) {
-            super.onPostExecute(result);
-        }
+        citySpinner = SpinnerUtils.createSpinner(this, R.id.city,
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
+                getString(R.string.city), 15, 15);
+        searchLayout.addView(citySpinner);
 
-        private List<LocationDTO> getChildLocations(final String urlString) {
-            final HttpHandler httpHandler = new HttpHandler();
-            final URL url = httpHandler.createUrl(urlString);
+        final List<LocationDTO> countries = new ArrayList<>(locations);
+        countries.add(0, new LocationDTO(getString(R.string.all)));
+        CustomArrayAdapterUtil.prepareCustomLocationArrayAdapter(this, countries,
+                R.layout.country_spinner_row_nothing_selected, countrySpinner);
 
-            try {
-                final String jsonResponse = httpHandler.makeHttpGetRequest(url, null, false);
+        states.add(0, new LocationDTO(getString(R.string.all)));
+        CustomArrayAdapterUtil.prepareCustomLocationArrayAdapter(this, states,
+                R.layout.state_spinner_row_nothing_selected, stateSpinner);
 
-                if (TextUtils.isEmpty(jsonResponse)) {
-                    return null;
-                }
+        cities.add(0, new LocationDTO(getString(R.string.all)));
+        CustomArrayAdapterUtil.prepareCustomLocationArrayAdapter(this, cities,
+                R.layout.city_spinner_row_nothing_selected, citySpinner);
 
-                final JsonConverter<LocationDTO> jsonConverter = new JsonConverter<>();
-                return new ArrayList<>(jsonConverter.extractCollectionFromJson(jsonResponse, LocationDTO.class,
-                        false));
-            } catch (final IOException e) {
-                Log.e(TAG, "Problem making the HTTP request.", e);
-            }
-
-            return null;
-        }
-    }
-
-    private void handleDropDownMenus(final List<LocationDTO> locations) {
-        if (CollectionUtils.isNotEmpty(locations)) {
-            countrySpinner = SpinnerUtils.createSpinner(this, R.id.country,
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
-                    getString(R.string.country), 15, 15);
-            searchLayout.addView(countrySpinner);
-
-            stateSpinner = SpinnerUtils.createSpinner(this, R.id.state,
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
-                    getString(R.string.state), 15, 15);
-            searchLayout.addView(stateSpinner);
-
-            citySpinner = SpinnerUtils.createSpinner(this, R.id.city,
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
-                    getString(R.string.city), 15, 15);
-            searchLayout.addView(citySpinner);
-
-            final List<LocationDTO> countries = new ArrayList<>(locations);
-            countries.add(0, new LocationDTO(getString(R.string.all)));
-            CustomArrayAdapterUtil.prepareCustomLocationArrayAdapter(this, countries,
-                    R.layout.country_spinner_row_nothing_selected, countrySpinner);
-
-            states.add(0, new LocationDTO(getString(R.string.all)));
-            CustomArrayAdapterUtil.prepareCustomLocationArrayAdapter(this, states,
-                    R.layout.state_spinner_row_nothing_selected, stateSpinner);
-
-            cities.add(0, new LocationDTO(getString(R.string.all)));
-            CustomArrayAdapterUtil.prepareCustomLocationArrayAdapter(this, cities,
-                    R.layout.city_spinner_row_nothing_selected, citySpinner);
-
-            countrySpinner.setOnItemSelectedListener(countryListener);
-            stateSpinner.setOnItemSelectedListener(stateListener);
-            citySpinner.setOnItemSelectedListener(cityListener);
-        } else {
-            if (noSearchCriteria.getVisibility() != View.VISIBLE) {
-                noSearchCriteria = TextViewUtils.createTextView(this, LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT, R.id.no_search_criteria, R.string.nosearchcriteriaavailable);
-                noSearchCriteria.setText(getString(R.string.nosearchcriteriaavailable));
-                noSearchCriteria.setTextSize(16f);
-                noSearchCriteria.setGravity(Gravity.CENTER);
-                searchLayout.addView(noSearchCriteria);
-            }
-        }
+        countrySpinner.setOnItemSelectedListener(countryListener);
+        stateSpinner.setOnItemSelectedListener(stateListener);
+        citySpinner.setOnItemSelectedListener(cityListener);
 
         final AppCompatButton searchButton = ButtonUtils.createAppCompatButton(this,
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -381,5 +374,14 @@ public class SearchActivity extends AppCompatActivity implements AsyncCollection
             startActivity(intent);
         });
         searchLayout.addView(searchButton);
+    }
+
+    private void handleError() {
+        noSearchCriteria = TextViewUtils.createTextView(getApplicationContext(), LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT, R.id.no_search_criteria, R.string.nosearchcriteriaavailable);
+        noSearchCriteria.setText(getString(R.string.nosearchcriteriaavailable));
+        noSearchCriteria.setTextSize(16f);
+        noSearchCriteria.setGravity(Gravity.CENTER);
+        searchLayout.addView(noSearchCriteria);
     }
 }

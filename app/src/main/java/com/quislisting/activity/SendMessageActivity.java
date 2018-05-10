@@ -1,8 +1,12 @@
 package com.quislisting.activity;
 
+import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.support.design.widget.TextInputLayout;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.AppCompatButton;
 import android.text.InputType;
@@ -14,9 +18,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.quislisting.R;
-import com.quislisting.task.AsyncObjectResponse;
-import com.quislisting.task.RestRouter;
-import com.quislisting.task.impl.HttpSendMessageRequestTask;
+import com.quislisting.model.request.MessageRequest;
+import com.quislisting.retrofit.APIInterface;
+import com.quislisting.retrofit.impl.APIClient;
 import com.quislisting.util.ButtonUtils;
 import com.quislisting.util.EditTextUtils;
 import com.quislisting.util.FieldValidationUtils;
@@ -26,14 +30,14 @@ import com.quislisting.util.TextViewUtils;
 
 import butterknife.Bind;
 import butterknife.ButterKnife;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
-public class SendMessageActivity extends AppCompatActivity implements View.OnClickListener,
-        AsyncObjectResponse<Integer> {
+public class SendMessageActivity extends AppCompatActivity implements View.OnClickListener {
 
     @Bind(R.id.sendMessageLayout)
     LinearLayout sendMessageLayout;
-
-    private String idToken = null;
 
     private EditText nameEditText = null;
     private EditText emailEditText = null;
@@ -47,7 +51,7 @@ public class SendMessageActivity extends AppCompatActivity implements View.OnCli
 
         ButterKnife.bind(this);
 
-        idToken = getIntent().getStringExtra("idToken");
+        final String idToken = getIntent().getStringExtra("idToken");
         if (StringUtils.isEmpty(idToken)) {
             nameEditText = EditTextUtils.createEditText(this, getString(R.string.name),
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -102,28 +106,55 @@ public class SendMessageActivity extends AppCompatActivity implements View.OnCli
     }
 
     @Override
-    public void processFinish(final Integer result) {
-        if (result != null && result == 200) {
-            Toast.makeText(this, getString(R.string.messagesent),
-                    Toast.LENGTH_SHORT).show();
-        } else
-            Toast.makeText(this, getString(R.string.messagenotsent),
-                    Toast.LENGTH_LONG).show();
-    }
-
-    @Override
     public void onClick(final View view) {
         switch (view.getId()) {
-            case R.id.send:
+            case R.id.send_message:
                 if (!validateInputElements()) {
                     return;
                 } else {
-                    final HttpSendMessageRequestTask sendMessageRequestTask =
-                            new HttpSendMessageRequestTask();
-                    sendMessageRequestTask.delegate = this;
-                    sendMessageRequestTask.execute(String.format(RestRouter.Listing.
-                                    SEND_LISTING_MESSAGE, getIntent().getStringExtra("messageOverviewId")),
-                            messageEditText.getText().toString(), idToken);
+                    final AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(this);
+                    alertDialogBuilder.setMessage(R.string.registernewusertext).setCancelable(false)
+                            .setPositiveButton(getString(R.string.alertdialogyes),
+                                    (DialogInterface.OnClickListener) (dialog, which) -> {
+                                        final APIInterface apiInterface = APIClient.getClient().create(APIInterface.class);
+
+                                        final SharedPreferences sharedPreferences = getSharedPreferences("com.quislisting",
+                                                Context.MODE_PRIVATE);
+                                        final String language = sharedPreferences.getString("language", null);
+
+                                        final MessageRequest messageRequest = new MessageRequest(nameEditText.getText().toString(),
+                                                emailEditText.getText().toString(), messageEditText.getText().toString(),
+                                                language);
+                                        final Call<Integer> sendContactMessageCall =
+                                                apiInterface.sendMessage(getIntent().getStringExtra("listingId"),
+                                                        messageRequest);
+
+                                        sendContactMessageCall.enqueue(new Callback<Integer>() {
+                                            @Override
+                                            public void onResponse(final Call<Integer> call, final Response<Integer> response) {
+                                                if (response.isSuccessful()) {
+                                                    Toast.makeText(getApplicationContext(), getString(R.string.messagesent),
+                                                            Toast.LENGTH_SHORT).show();
+                                                } else {
+                                                    Toast.makeText(getApplicationContext(), getString(R.string.messagenotsent),
+                                                            Toast.LENGTH_SHORT).show();
+                                                }
+                                            }
+
+                                            @Override
+                                            public void onFailure(final Call<Integer> call, final Throwable t) {
+                                                call.cancel();
+                                                Toast.makeText(getApplicationContext(), getString(R.string.noconnection),
+                                                        Toast.LENGTH_SHORT).show();
+                                            }
+                                        });
+                                    }).setNegativeButton(getString(R.string.alertdialogno),
+                            (DialogInterface.OnClickListener) (dialog, which) -> {
+                                dialog.cancel();
+                            });
+                    final AlertDialog alertDialog = alertDialogBuilder.create();
+                    alertDialog.setTitle(getString(R.string.alertdialognewuser));
+                    alertDialog.show();
                 }
                 break;
         }

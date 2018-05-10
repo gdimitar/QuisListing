@@ -8,7 +8,7 @@ public class SearchResultUtil<T> {
 
     private static final String TAG = SearchResultUtil.class.getSimpleName();
 
-    final Class<T> typeParameterClass;
+    private final Class<T> typeParameterClass;
 
     public SearchResultUtil(final Class<T> typeParameterClass) {
         this.typeParameterClass = typeParameterClass;

@@ -1,32 +1,13 @@
 package com.quislisting.model;
 
+import com.google.gson.annotations.SerializedName;
+
 public class Language {
 
+    @SerializedName("code")
     private String code;
+    @SerializedName("englishName")
     private String englishName;
+    @SerializedName("count")
     private Long count;
-
-    public String getCode() {
-        return code;
-    }
-
-    public void setCode(final String code) {
-        this.code = code;
-    }
-
-    public String getEnglishName() {
-        return englishName;
-    }
-
-    public void setEnglishName(final String englishName) {
-        this.englishName = englishName;
-    }
-
-    public Long getCount() {
-        return count;
-    }
-
-    public void setCount(final Long count) {
-        this.count = count;
-    }
 }

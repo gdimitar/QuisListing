@@ -1,8 +1,12 @@
 package com.quislisting.model;
 
+import com.google.gson.annotations.SerializedName;
+
 public class Attachment {
 
+    @SerializedName("smallImage")
     private String smallImage;
+    @SerializedName("originalImage")
     private String originalImage;
 
     public String getSmallImage() {

@@ -1,14 +1,22 @@
 package com.quislisting.model;
 
+import com.google.gson.annotations.SerializedName;
+
 import java.sql.Timestamp;
 
 public class Message {
 
+    @SerializedName("id")
     private Long id;
+    @SerializedName("sender")
     private BaseUser sender;
+    @SerializedName("receiver")
     private BaseUser receiver;
+    @SerializedName("listingId")
     private Long listingId;
+    @SerializedName("text")
     private String text;
+    @SerializedName("created")
     private Timestamp created;
 
     public Long getId() {

@@ -1,13 +1,20 @@
 package com.quislisting.model;
 
+import com.google.gson.annotations.SerializedName;
+
 import java.util.List;
 
 public class Listing extends BaseListing {
 
+    @SerializedName("content")
     private String content;
+    @SerializedName("contactInfo")
     private String contactInfo;
+    @SerializedName("dlListingFields")
     private List<ListingField> dlListingFields;
+    @SerializedName("dlCategories")
     private List<String> dlCategories;
+    @SerializedName("attachments")
     private List<Attachment> attachments;
 
     public String getContent() {

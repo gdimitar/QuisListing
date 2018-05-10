@@ -1,23 +1,11 @@
 package com.quislisting.model;
 
+import com.google.gson.annotations.SerializedName;
+
 public class ListingFieldItem {
 
+    @SerializedName("id")
     private Long id;
+    @SerializedName("value")
     private String value;
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(final Long id) {
-        this.id = id;
-    }
-
-    public String getValue() {
-        return value;
-    }
-
-    public void setValue(final String value) {
-        this.value = value;
-    }
 }

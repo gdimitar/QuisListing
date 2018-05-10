@@ -11,15 +11,17 @@ import android.widget.EditText;
 import android.widget.Toast;
 
 import com.quislisting.R;
-import com.quislisting.task.AsyncObjectResponse;
-import com.quislisting.task.RestRouter;
-import com.quislisting.task.impl.HttpSendContactMessageRequestTask;
+import com.quislisting.model.request.ContactMessageRequest;
+import com.quislisting.retrofit.APIInterface;
+import com.quislisting.retrofit.impl.APIClient;
 
 import butterknife.Bind;
 import butterknife.ButterKnife;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
-public class AddListingActivity extends AppCompatActivity implements AsyncObjectResponse<Integer>,
-        View.OnClickListener {
+public class AddListingActivity extends AppCompatActivity implements View.OnClickListener {
 
     @Bind(R.id.email)
     EditText email;
@@ -31,6 +33,8 @@ public class AddListingActivity extends AppCompatActivity implements AsyncObject
     EditText message;
     @Bind(R.id.send)
     Button sendMessage;
+
+    private APIInterface apiInterface;
 
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
@@ -52,24 +56,32 @@ public class AddListingActivity extends AppCompatActivity implements AsyncObject
                 final SharedPreferences sharedPreferences = getSharedPreferences("com.quislisting",
                         Context.MODE_PRIVATE);
                 final String language = sharedPreferences.getString("language", "en");
-                final HttpSendContactMessageRequestTask updateUserRequestTask =
-                        new HttpSendContactMessageRequestTask();
-                updateUserRequestTask.delegate = this;
-                updateUserRequestTask.execute(RestRouter.ContactCenter.SEND_CONTACT_MESSAGE,
-                        email.getText().toString(), name.getText().toString(), subject.getText().toString(),
-                        message.getText().toString(), language);
-                break;
-        }
-    }
 
-    @Override
-    public void processFinish(final Integer result) {
-        if (result != null && result == 200) {
-            Toast.makeText(this, getString(R.string.contactemailsent),
-                    Toast.LENGTH_LONG).show();
-        } else {
-            Toast.makeText(this, getString(R.string.contactemailnotsent),
-                    Toast.LENGTH_LONG).show();
+                apiInterface = APIClient.getClient().create(APIInterface.class);
+
+                final ContactMessageRequest contactMessageRequest =
+                        new ContactMessageRequest(email.getText().toString(), name.getText().toString(),
+                                subject.getText().toString(), message.getText().toString(), language);
+                final Call<Integer> sendContactMessageCall = apiInterface.sendContactMessage(contactMessageRequest);
+                sendContactMessageCall.enqueue(new Callback<Integer>() {
+                    @Override
+                    public void onResponse(final Call<Integer> call, final Response<Integer> response) {
+                        if (response.isSuccessful()) {
+                            Toast.makeText(getApplicationContext(), getString(R.string.contactemailsent),
+                                    Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(getApplicationContext(), getString(R.string.contactemailnotsent),
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(final Call<Integer> call, final Throwable t) {
+                        call.cancel();
+                        Toast.makeText(getApplicationContext(), getString(R.string.noconnection),
+                                Toast.LENGTH_SHORT).show();
+                    }
+                });
         }
     }
 }

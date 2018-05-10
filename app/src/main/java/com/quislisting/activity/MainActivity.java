@@ -16,6 +16,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.mikepenz.materialdrawer.AccountHeader;
 import com.mikepenz.materialdrawer.AccountHeaderBuilder;
@@ -25,16 +26,14 @@ import com.mikepenz.materialdrawer.model.ExpandableDrawerItem;
 import com.mikepenz.materialdrawer.model.PrimaryDrawerItem;
 import com.mikepenz.materialdrawer.model.ProfileDrawerItem;
 import com.mikepenz.materialdrawer.model.SecondaryDrawerItem;
+import com.quislisting.QuisListingApplication;
 import com.quislisting.R;
 import com.quislisting.adapter.ListingAdapter;
 import com.quislisting.model.BaseListing;
 import com.quislisting.model.User;
+import com.quislisting.retrofit.APIInterface;
+import com.quislisting.retrofit.impl.APIClient;
 import com.quislisting.service.SignoutService;
-import com.quislisting.task.AsyncCollectionResponse;
-import com.quislisting.task.AsyncObjectResponse;
-import com.quislisting.task.RestRouter;
-import com.quislisting.task.impl.HttpGetBaseListingsRequestTask;
-import com.quislisting.task.impl.HttpGetUserRequestTask;
 import com.quislisting.util.CollectionUtils;
 import com.quislisting.util.StringUtils;
 
@@ -43,14 +42,19 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 
-public class MainActivity extends AppCompatActivity implements AsyncCollectionResponse<BaseListing>,
-        AsyncObjectResponse<User>, View.OnClickListener {
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
+public class MainActivity extends AppCompatActivity {
 
     private Drawer result = null;
 
     private String idToken = null;
 
     private ProgressDialog progressDialog;
+
+    private APIInterface apiInterface;
 
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
@@ -76,11 +80,45 @@ public class MainActivity extends AppCompatActivity implements AsyncCollectionRe
 
         final String selectedLanguage = sharedPreferences.getString("language", null);
         if (StringUtils.isNotEmpty(selectedLanguage)) {
-            final HttpGetBaseListingsRequestTask getBaseListingsRequestTask =
-                    new HttpGetBaseListingsRequestTask();
-            getBaseListingsRequestTask.delegate = this;
-            getBaseListingsRequestTask.execute(String.format(RestRouter.Listing.GET_RECENT_LISTINGS,
-                    selectedLanguage));
+            apiInterface = APIClient.getClient().create(APIInterface.class);
+
+            final Call<Collection<BaseListing>> getBaseListingsCall = apiInterface.getBaseListings(selectedLanguage);
+
+            getBaseListingsCall.enqueue(new Callback<Collection<BaseListing>>() {
+                @Override
+                public void onResponse(final Call<Collection<BaseListing>> call,
+                                       final Response<Collection<BaseListing>> response) {
+                    if (response.isSuccessful() && CollectionUtils.isNotEmpty(response.body())) {
+                        final List<BaseListing> listingList = new ArrayList<>(response.body());
+                        final ListView listView = (ListView) findViewById(R.id.listView);
+                        final ListingAdapter listingAdapter = new ListingAdapter(getApplicationContext(),
+                                new ArrayList<>(response.body()));
+                        listView.setVisibility(View.VISIBLE);
+                        listView.setAdapter(listingAdapter);
+
+                        listView.setOnItemClickListener((parent, view, position, id) -> {
+                            final Intent intent = new Intent(getApplicationContext(),
+                                    ListingDetailsActivity.class);
+                            intent.putExtra("listingId", listingList.get(position).getId().toString());
+                            intent.putExtra("idToken", idToken);
+                            startActivity(intent);
+                        });
+                    } else {
+                        Toast.makeText(getApplicationContext(), getString(R.string.nolistings),
+                                Toast.LENGTH_SHORT).show();
+                        handleError();
+                    }
+                    progressDialog.dismiss();
+                }
+
+                @Override
+                public void onFailure(final Call<Collection<BaseListing>> call, final Throwable t) {
+                    call.cancel();
+                    Toast.makeText(getApplicationContext(), getString(R.string.noconnection),
+                            Toast.LENGTH_SHORT).show();
+                    handleError();
+                }
+            });
         }
 
         // create toolbar
@@ -91,44 +129,21 @@ public class MainActivity extends AppCompatActivity implements AsyncCollectionRe
         result = new DrawerBuilder().withActivity(this).withToolbar(toolbar)
                 .withSavedInstance(savedInstanceState).build();
 
-        final HttpGetUserRequestTask retrieveUserRequest =
-                new HttpGetUserRequestTask();
-        retrieveUserRequest.delegate = this;
-        retrieveUserRequest.execute(RestRouter.User.GET_USER, idToken);
-    }
+        final Call<User> getUserCall = apiInterface.getUser("Bearer " + idToken);
 
-    @Override
-    public void processFinish(final Collection<BaseListing> baseListings) {
-        if (CollectionUtils.isNotEmpty(baseListings)) {
-            final List<BaseListing> listingList = new ArrayList<>(baseListings);
-            final ListView listView = (ListView) findViewById(R.id.listView);
-            final ListingAdapter listingAdapter = new ListingAdapter(this,
-                    new ArrayList<>(baseListings));
-            listView.setVisibility(View.VISIBLE);
-            listView.setAdapter(listingAdapter);
+        getUserCall.enqueue(new Callback<User>() {
+            @Override
+            public void onResponse(final Call<User> call, final Response<User> response) {
+                prepareDrawer(result, idToken, response.body());
+            }
 
-            listView.setOnItemClickListener((parent, view, position, id) -> {
-                final Intent intent = new Intent(this,
-                        ListingDetailsActivity.class);
-                intent.putExtra("listingId", listingList.get(position).getId().toString());
-                intent.putExtra("idToken", this.idToken);
-                startActivity(intent);
-            });
-        } else {
-            final TextView noListingText = (TextView) findViewById(R.id.noListingsText);
-            final TextView addListingText = (TextView) findViewById(R.id.addListingText);
-
-            noListingText.setVisibility(View.VISIBLE);
-            addListingText.setVisibility(View.VISIBLE);
-
-            addListingText.setOnClickListener(this);
-        }
-        progressDialog.dismiss();
-    }
-
-    @Override
-    public void processFinish(final User user) {
-        prepareDrawer(result, idToken, user);
+            @Override
+            public void onFailure(final Call<User> call, final Throwable t) {
+                call.cancel();
+                Toast.makeText(getApplicationContext(), getString(R.string.retrieveusererror),
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     @Override
@@ -199,6 +214,9 @@ public class MainActivity extends AppCompatActivity implements AsyncCollectionRe
                 languageDrawerItem);
 
         if (StringUtils.isNotEmpty(idToken) && user != null) {
+            ((QuisListingApplication) this.getApplication()).setName(user.getFirstName() +
+                    StringUtils.SEPARATOR + user.getLastName());
+            ((QuisListingApplication) this.getApplication()).setEmail(user.getLogin());
             final Intent serviceIntent = new Intent(this, SignoutService.class);
             startService(serviceIntent);
             final AccountHeader accountHeader = prepareAccountHeader(user, R.color.black);
@@ -274,8 +292,8 @@ public class MainActivity extends AppCompatActivity implements AsyncCollectionRe
         return new AccountHeaderBuilder()
                 .withActivity(this)
                 .addProfiles(
-                        new ProfileDrawerItem().withName(user.getFirstName() + user.getLastName())
-                                .withEmail(user.getEmail())
+                        new ProfileDrawerItem().withName(user.getFirstName() + StringUtils.SEPARATOR
+                                + user.getLastName()).withEmail(user.getEmail())
                 )
                 .withCompactStyle(true)
                 .withTextColor(getResources().getColor(colorId))
@@ -283,13 +301,13 @@ public class MainActivity extends AppCompatActivity implements AsyncCollectionRe
                 .build();
     }
 
-    @Override
-    public void onClick(final View view) {
-        switch (view.getId()) {
-            case R.id.addListingText:
-                final Intent intent = new Intent(this, AddListingActivity.class);
-                startActivity(intent);
-                break;
-        }
+    private void handleError() {
+        setContentView(R.layout.empty_listings_layout);
+
+        final TextView addListingText = (TextView) findViewById(R.id.addListingText);
+        addListingText.setOnClickListener(view -> {
+            final Intent intent = new Intent(getApplicationContext(), AddListingActivity.class);
+            startActivity(intent);
+        });
     }
 }
