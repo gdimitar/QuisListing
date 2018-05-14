@@ -94,7 +94,7 @@ public class SearchResultActivity extends AppCompatActivity {
                     final List<BaseListing> listingList = new ArrayList<>(response.body());
                     final ListView listView = (ListView) findViewById(R.id.listView);
                     final ListingAdapter listingAdapter = new ListingAdapter(getApplicationContext(),
-                            new ArrayList<>(response.body()));
+                            getResources(), new ArrayList<>(response.body()));
                     listView.setVisibility(View.VISIBLE);
                     listView.setAdapter(listingAdapter);
 

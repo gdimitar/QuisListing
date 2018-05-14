@@ -21,8 +21,8 @@
 
     <ListView
         android:id="@+id/listView"
-        android:layout_width="fill_parent"
-        android:layout_height="fill_parent"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         android:layout_marginTop="?attr/actionBarSize"
         android:smoothScrollbar="true"
         android:scrollingCache="false"
