@@ -1,8 +1,10 @@
 package com.quislisting.adapter;
 
 import android.content.Context;
+import android.content.res.Resources;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.widget.BaseAdapter;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -22,11 +24,13 @@ public class ListingAdapter extends BaseAdapter {
     private static final String FILE_CONTENT_URL = "/content/files";
 
     private final Context context;
+    private final Resources resources;
     private final List<BaseListing> baseListings;
     private ViewHolder holder;
 
-    public ListingAdapter(final Context context, final List<BaseListing> baseListings) {
+    public ListingAdapter(final Context context, final Resources resources, final List<BaseListing> baseListings) {
         this.context = context;
+        this.resources = resources;
         this.baseListings = baseListings;
     }
 
@@ -65,9 +69,12 @@ public class ListingAdapter extends BaseAdapter {
                     .into(holder.listingImage);
         }
         holder.listingTitle.setText(baseListings.get(position).getTitle());
+        holder.listingTitle.setTextColor(resources.getColor(R.color.black));
         holder.listingLocation.setText(getListingLocation(baseListings.get(position)
                 .getDlLocations()));
+        holder.listingLocation.setTextColor(resources.getColor(R.color.black));
         holder.listingDate.setText(StringUtils.convertLongTimestampToString(baseListings.get(position).getCreated()));
+        holder.listingDate.setTextColor(resources.getColor(R.color.black));
 
         return convertView;
     }
