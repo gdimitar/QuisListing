@@ -108,7 +108,6 @@ public class MainActivity extends AppCompatActivity {
                                 Toast.LENGTH_SHORT).show();
                         handleError();
                     }
-                    progressDialog.dismiss();
                 }
 
                 @Override
@@ -119,6 +118,7 @@ public class MainActivity extends AppCompatActivity {
                     handleError();
                 }
             });
+            progressDialog.dismiss();
         }
 
         // create toolbar
