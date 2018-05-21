@@ -25,6 +25,7 @@ import com.quislisting.model.request.MessageRequest;
 import com.quislisting.retrofit.APIInterface;
 import com.quislisting.retrofit.impl.APIClient;
 import com.quislisting.util.CollectionUtils;
+import com.quislisting.util.ConnectionChecker;
 import com.quislisting.util.FieldValidationUtils;
 import com.quislisting.util.StringUtils;
 
@@ -66,7 +67,8 @@ public class MessageOverviewActivity extends AppCompatActivity implements View.O
 
         chatSendButton.setOnClickListener(this);
 
-        if (StringUtils.isNotEmpty(listingId) && StringUtils.isNotEmpty(idToken)) {
+        if (StringUtils.isNotEmpty(listingId) && StringUtils.isNotEmpty(idToken)
+                && ConnectionChecker.isOnline()) {
             progressDialog = new ProgressDialog(this);
             progressDialog.setMessage(getString(R.string.fetchmessages));
             progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
@@ -105,6 +107,9 @@ public class MessageOverviewActivity extends AppCompatActivity implements View.O
                             Toast.LENGTH_SHORT).show();
                 }
             });
+        } else {
+            Toast.makeText(getApplicationContext(), getString(R.string.noconnection),
+                    Toast.LENGTH_SHORT).show();
         }
     }
 

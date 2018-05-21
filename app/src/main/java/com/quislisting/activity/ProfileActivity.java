@@ -20,6 +20,7 @@ import com.quislisting.model.User;
 import com.quislisting.model.request.UpdateUserRequest;
 import com.quislisting.retrofit.APIInterface;
 import com.quislisting.retrofit.impl.APIClient;
+import com.quislisting.util.ConnectionChecker;
 import com.quislisting.util.FieldValidationUtils;
 import com.quislisting.util.StringUtils;
 
@@ -62,7 +63,7 @@ public class ProfileActivity extends AppCompatActivity implements View.OnClickLi
 
         idToken = getIntent().getStringExtra("idToken");
 
-        if (StringUtils.isNotEmpty(idToken)) {
+        if (StringUtils.isNotEmpty(idToken) && ConnectionChecker.isOnline()) {
             ButterKnife.bind(this);
 
             save.setOnClickListener(this);
@@ -97,11 +98,7 @@ public class ProfileActivity extends AppCompatActivity implements View.OnClickLi
             scrollView.removeAllViews();
             setContentView(R.layout.empty_layout);
 
-            Toast.makeText(getApplicationContext(), getString(R.string.retrieveprofileprefencesfailed),
-                    Toast.LENGTH_SHORT).show();
-
-            final TextView emptyText = (TextView) findViewById(R.id.emptyText);
-            emptyText.setText(getString(R.string.preferencesnotavailable));
+            handleError();
         }
     }
 
@@ -226,5 +223,12 @@ public class ProfileActivity extends AppCompatActivity implements View.OnClickLi
                 return "ro";
         }
         return "en";
+    }
+
+    private void handleError() {
+        Toast.makeText(getApplicationContext(), getString(R.string.retrieveprofileprefencesfailed),
+                Toast.LENGTH_SHORT).show();
+        final TextView emptyText = (TextView) findViewById(R.id.emptyText);
+        emptyText.setText(getString(R.string.preferencesnotavailable));
     }
 }

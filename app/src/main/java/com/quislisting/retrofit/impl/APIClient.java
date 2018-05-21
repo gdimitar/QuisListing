@@ -2,7 +2,8 @@ package com.quislisting.retrofit.impl;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.quislisting.rest.endpoints.RestRouter;
+import com.quislisting.endpoints.rest.BaseConfigurations;
+import com.quislisting.endpoints.rest.RestRouter;
 
 import java.util.concurrent.TimeUnit;
 
@@ -19,8 +20,9 @@ public class APIClient {
         final HttpLoggingInterceptor interceptor = new HttpLoggingInterceptor();
         interceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
         final OkHttpClient client = new OkHttpClient.Builder().addInterceptor(interceptor)
-                .connectTimeout(5, TimeUnit.SECONDS).readTimeout(5, TimeUnit.SECONDS)
-                .writeTimeout(5, TimeUnit.SECONDS).build();
+                .connectTimeout(BaseConfigurations.RetrofitTimeoutConfig.CONNECT_TIMEOUT, TimeUnit.SECONDS)
+                .readTimeout(BaseConfigurations.RetrofitTimeoutConfig.READ_TIMEOUT, TimeUnit.SECONDS)
+                .writeTimeout(BaseConfigurations.RetrofitTimeoutConfig.WRITE_TIMEOUT, TimeUnit.SECONDS).build();
 
         final Gson gson = new GsonBuilder().setLenient().create();
 

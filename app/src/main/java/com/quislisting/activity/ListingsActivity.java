@@ -17,6 +17,7 @@ import com.quislisting.model.Listing;
 import com.quislisting.retrofit.APIInterface;
 import com.quislisting.retrofit.impl.APIClient;
 import com.quislisting.util.CollectionUtils;
+import com.quislisting.util.ConnectionChecker;
 import com.quislisting.util.StringUtils;
 
 import java.util.ArrayList;
@@ -48,45 +49,51 @@ public class ListingsActivity extends AppCompatActivity implements View.OnClickL
                 Context.MODE_PRIVATE);
         final String selectedLanguage = sharedPreferences.getString("language", null);
 
-        final APIInterface apiInterface = APIClient.getClient().create(APIInterface.class);
+        if (ConnectionChecker.isOnline()) {
+            final APIInterface apiInterface = APIClient.getClient().create(APIInterface.class);
 
-        final Call<Collection<Listing>> getListingsCall = apiInterface.getListings(selectedLanguage,
-                "Bearer " + idToken);
+            final Call<Collection<Listing>> getListingsCall = apiInterface.getListings(selectedLanguage,
+                    "Bearer " + idToken);
 
-        getListingsCall.enqueue(new Callback<Collection<Listing>>() {
-            @Override
-            public void onResponse(final Call<Collection<Listing>> call,
-                                   final Response<Collection<Listing>> response) {
-                if (response.isSuccessful() && CollectionUtils.isNotEmpty(response.body())) {
-                    final List<Listing> listingList = new ArrayList<>(response.body());
-                    final ListView listView = (ListView) findViewById(R.id.listView);
-                    final ListingAdapter listingAdapter = new ListingAdapter(getApplicationContext(),
-                            getResources(), new ArrayList<>(response.body()));
-                    listView.setVisibility(View.VISIBLE);
-                    listView.setAdapter(listingAdapter);
+            getListingsCall.enqueue(new Callback<Collection<Listing>>() {
+                @Override
+                public void onResponse(final Call<Collection<Listing>> call,
+                                       final Response<Collection<Listing>> response) {
+                    if (response.isSuccessful() && CollectionUtils.isNotEmpty(response.body())) {
+                        final List<Listing> listingList = new ArrayList<>(response.body());
+                        final ListView listView = (ListView) findViewById(R.id.listView);
+                        final ListingAdapter listingAdapter = new ListingAdapter(getApplicationContext(),
+                                getResources(), new ArrayList<>(response.body()));
+                        listView.setVisibility(View.VISIBLE);
+                        listView.setAdapter(listingAdapter);
 
-                    listView.setOnItemClickListener((parent, view, position, id) -> {
-                        final Intent intent = new Intent(getApplicationContext(),
-                                ListingDetailsActivity.class);
-                        intent.putExtra("listingId", listingList.get(position).getId().toString());
-                        intent.putExtra("idToken", idToken);
-                        startActivity(intent);
-                    });
-                } else {
-                    Toast.makeText(getApplicationContext(), getString(R.string.nolistings),
+                        listView.setOnItemClickListener((parent, view, position, id) -> {
+                            final Intent intent = new Intent(getApplicationContext(),
+                                    ListingDetailsActivity.class);
+                            intent.putExtra("listingId", listingList.get(position).getId().toString());
+                            intent.putExtra("idToken", idToken);
+                            startActivity(intent);
+                        });
+                    } else {
+                        Toast.makeText(getApplicationContext(), getString(R.string.nolistings),
+                                Toast.LENGTH_SHORT).show();
+                        handleError();
+                    }
+                }
+
+                @Override
+                public void onFailure(final Call<Collection<Listing>> call, final Throwable t) {
+                    call.cancel();
+                    Toast.makeText(getApplicationContext(), getString(R.string.noconnection),
                             Toast.LENGTH_SHORT).show();
                     handleError();
                 }
-            }
-
-            @Override
-            public void onFailure(final Call<Collection<Listing>> call, final Throwable t) {
-                call.cancel();
-                Toast.makeText(getApplicationContext(), getString(R.string.noconnection),
-                        Toast.LENGTH_SHORT).show();
-                handleError();
-            }
-        });
+            });
+        } else {
+            Toast.makeText(getApplicationContext(), getString(R.string.noconnection),
+                    Toast.LENGTH_SHORT).show();
+            handleError();
+        }
     }
 
     @Override

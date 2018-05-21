@@ -22,6 +22,7 @@ import com.quislisting.model.Listing;
 import com.quislisting.retrofit.APIInterface;
 import com.quislisting.retrofit.impl.APIClient;
 import com.quislisting.util.CollectionUtils;
+import com.quislisting.util.ConnectionChecker;
 import com.quislisting.util.JsonObjectPopulator;
 import com.quislisting.util.StringUtils;
 
@@ -44,8 +45,6 @@ public class SearchResultActivity extends AppCompatActivity {
     @Bind(R.id.searchResultsView)
     ConstraintLayout searchResultsView;
 
-    private ProgressDialog progressDialog;
-
     private String searchText;
 
     @Override
@@ -56,72 +55,78 @@ public class SearchResultActivity extends AppCompatActivity {
 
         ButterKnife.bind(this);
 
-        progressDialog = new ProgressDialog(this);
-        progressDialog.setMessage(getString(R.string.fetchdata));
-        progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
-        progressDialog.show();
-        progressDialog.setCancelable(false);
+        if (ConnectionChecker.isOnline()) {
+            final ProgressDialog progressDialog = new ProgressDialog(this);
+            progressDialog.setMessage(getString(R.string.fetchdata));
+            progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+            progressDialog.show();
+            progressDialog.setCancelable(false);
 
-        searchText = getIntent().getStringExtra("searchText");
-        final String searchCategoryText = getFieldData("searchCategoryText");
-        final String searchCountryText = getFieldData("searchCountryText");
-        final String searchStateText = getFieldData("searchStateText");
-        final String searchCityText = getFieldData("searchCityText");
+            searchText = getIntent().getStringExtra("searchText");
+            final String searchCategoryText = getFieldData("searchCategoryText");
+            final String searchCountryText = getFieldData("searchCountryText");
+            final String searchStateText = getFieldData("searchStateText");
+            final String searchCityText = getFieldData("searchCityText");
 
-        final SharedPreferences sharedPreferences = getSharedPreferences("com.quislisting",
-                Context.MODE_PRIVATE);
-        //TODO: verify this is working
-        final String language = sharedPreferences.getString("language", "en");
+            final SharedPreferences sharedPreferences = getSharedPreferences("com.quislisting",
+                    Context.MODE_PRIVATE);
 
-        final APIInterface apiInterface = APIClient.getClient().create(APIInterface.class);
+            final String language = sharedPreferences.getString("language", "en");
 
-        final JSONObject jsonObject = JsonObjectPopulator.prepareSearchResultJson(searchText, searchCategoryText,
-                searchCountryText, searchStateText, searchCityText);
+            final APIInterface apiInterface = APIClient.getClient().create(APIInterface.class);
 
-        Call<Collection<Listing>> searchListingsCall = null;
-        try {
-            searchListingsCall = apiInterface.searchListings(URLEncoder.encode(jsonObject.toString(), "UTF-8"),
-                    language);
-        } catch (final UnsupportedEncodingException e) {
-            e.printStackTrace();
-        }
+            final JSONObject jsonObject = JsonObjectPopulator.prepareSearchResultJson(searchText, searchCategoryText,
+                    searchCountryText, searchStateText, searchCityText);
 
-        assert searchListingsCall != null;
-        searchListingsCall.enqueue(new Callback<Collection<Listing>>() {
-            @Override
-            public void onResponse(final Call<Collection<Listing>> call, final Response<Collection<Listing>> response) {
-                if (response.isSuccessful() && CollectionUtils.isNotEmpty(response.body())) {
-                    final List<BaseListing> listingList = new ArrayList<>(response.body());
-                    final ListView listView = (ListView) findViewById(R.id.listView);
-                    final ListingAdapter listingAdapter = new ListingAdapter(getApplicationContext(),
-                            getResources(), new ArrayList<>(response.body()));
-                    listView.setVisibility(View.VISIBLE);
-                    listView.setAdapter(listingAdapter);
+            Call<Collection<Listing>> searchListingsCall = null;
+            try {
+                searchListingsCall = apiInterface.searchListings(URLEncoder.encode(jsonObject.toString(), "UTF-8"),
+                        language);
+            } catch (final UnsupportedEncodingException e) {
+                e.printStackTrace();
+            }
 
-                    listView.setOnItemClickListener((parent, view, position, id) -> {
-                        final Intent intent = new Intent(getApplicationContext(),
-                                ListingDetailsActivity.class);
-                        intent.putExtra("listingId", listingList.get(position).getId().toString());
-                        intent.putExtra("idToken", StringUtils.EMPTY_STRING);
-                        startActivity(intent);
-                    });
-                } else {
-                    Toast.makeText(getApplicationContext(), getString(R.string.nolistingresults),
+            assert searchListingsCall != null;
+            searchListingsCall.enqueue(new Callback<Collection<Listing>>() {
+                @Override
+                public void onResponse(final Call<Collection<Listing>> call, final Response<Collection<Listing>> response) {
+                    if (response.isSuccessful() && CollectionUtils.isNotEmpty(response.body())) {
+                        final List<BaseListing> listingList = new ArrayList<>(response.body());
+                        final ListView listView = (ListView) findViewById(R.id.listView);
+                        final ListingAdapter listingAdapter = new ListingAdapter(getApplicationContext(),
+                                getResources(), new ArrayList<>(response.body()));
+                        listView.setVisibility(View.VISIBLE);
+                        listView.setAdapter(listingAdapter);
+
+                        listView.setOnItemClickListener((parent, view, position, id) -> {
+                            final Intent intent = new Intent(getApplicationContext(),
+                                    ListingDetailsActivity.class);
+                            intent.putExtra("listingId", listingList.get(position).getId().toString());
+                            intent.putExtra("idToken", StringUtils.EMPTY_STRING);
+                            startActivity(intent);
+                        });
+                    } else {
+                        Toast.makeText(getApplicationContext(), getString(R.string.nolistingresults),
+                                Toast.LENGTH_SHORT).show();
+                        handleError();
+
+                    }
+                }
+
+                @Override
+                public void onFailure(final Call<Collection<Listing>> call, final Throwable t) {
+                    call.cancel();
+                    Toast.makeText(getApplicationContext(), getString(R.string.noconnection),
                             Toast.LENGTH_SHORT).show();
                     handleError();
-
                 }
-                progressDialog.dismiss();
-            }
-
-            @Override
-            public void onFailure(final Call<Collection<Listing>> call, final Throwable t) {
-                call.cancel();
-                Toast.makeText(getApplicationContext(), getString(R.string.noconnection),
-                        Toast.LENGTH_SHORT).show();
-                handleError();
-            }
-        });
+            });
+            progressDialog.dismiss();
+        } else {
+            Toast.makeText(getApplicationContext(), getString(R.string.noconnection),
+                    Toast.LENGTH_SHORT).show();
+            handleError();
+        }
     }
 
     private String getFieldData(final String fieldName) {

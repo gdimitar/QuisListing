@@ -28,6 +28,7 @@ import com.quislisting.retrofit.impl.APIClient;
 import com.quislisting.util.BaseCategoryFilterUtil;
 import com.quislisting.util.ButtonUtils;
 import com.quislisting.util.CollectionUtils;
+import com.quislisting.util.ConnectionChecker;
 import com.quislisting.util.CustomArrayAdapterUtil;
 import com.quislisting.util.SearchResultUtil;
 import com.quislisting.util.SpinnerUtils;
@@ -74,75 +75,81 @@ public class SearchActivity extends AppCompatActivity {
 
         ButterKnife.bind(this);
 
-        apiInterface = APIClient.getClient().create(APIInterface.class);
+        if (ConnectionChecker.isOnline()) {
+            apiInterface = APIClient.getClient().create(APIInterface.class);
 
-        final Call<Collection<BaseCategory>> baseCategoriesCall = apiInterface.getBaseCategories();
+            final Call<Collection<BaseCategory>> baseCategoriesCall = apiInterface.getBaseCategories();
 
-        baseCategoriesCall.enqueue(new Callback<Collection<BaseCategory>>() {
-            @Override
-            public void onResponse(final Call<Collection<BaseCategory>> call,
-                                   final Response<Collection<BaseCategory>> response) {
-                if (response.isSuccessful() && CollectionUtils.isNotEmpty(response.body())) {
-                    parentCategories = BaseCategoryFilterUtil.filterParentCategories(response.body());
-                    categoriesWithParent = BaseCategoryFilterUtil.filterChildCategories(response.body(), null);
+            baseCategoriesCall.enqueue(new Callback<Collection<BaseCategory>>() {
+                @Override
+                public void onResponse(final Call<Collection<BaseCategory>> call,
+                                       final Response<Collection<BaseCategory>> response) {
+                    if (response.isSuccessful() && CollectionUtils.isNotEmpty(response.body())) {
+                        parentCategories = BaseCategoryFilterUtil.filterParentCategories(response.body());
+                        categoriesWithParent = BaseCategoryFilterUtil.filterChildCategories(response.body(), null);
 
-                    categorySpinner = SpinnerUtils.createSpinner(getApplicationContext(), R.id.category,
-                            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
-                            getString(R.string.category), 15, 15);
-                    searchLayout.addView(categorySpinner);
+                        categorySpinner = SpinnerUtils.createSpinner(getApplicationContext(), R.id.category,
+                                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
+                                getString(R.string.category), 15, 15);
+                        searchLayout.addView(categorySpinner);
 
-                    parentCategories.add(0, new BaseCategory(getString(R.string.all)));
-                    CustomArrayAdapterUtil.prepareCustomCategoryArrayAdapter(getApplicationContext(), parentCategories,
-                            R.layout.category_spinner_row_nothing_selected, categorySpinner);
-                    categorySpinner.setOnItemSelectedListener(categoryListener);
-                    categorySpinner.setOnTouchListener(categoryOnTouchListener);
-                } else {
-                    Toast.makeText(getApplicationContext(), getString(R.string.retrievecategoryerror),
+                        parentCategories.add(0, new BaseCategory(getString(R.string.all)));
+                        CustomArrayAdapterUtil.prepareCustomCategoryArrayAdapter(getApplicationContext(), parentCategories,
+                                R.layout.category_spinner_row_nothing_selected, categorySpinner);
+                        categorySpinner.setOnItemSelectedListener(categoryListener);
+                        categorySpinner.setOnTouchListener(categoryOnTouchListener);
+                    } else {
+                        Toast.makeText(getApplicationContext(), getString(R.string.retrievecategoryerror),
+                                Toast.LENGTH_SHORT).show();
+                        handleError();
+                    }
+                }
+
+                @Override
+                public void onFailure(final Call<Collection<BaseCategory>> call, final Throwable t) {
+                    call.cancel();
+                    Toast.makeText(getApplicationContext(), getString(R.string.noconnection),
                             Toast.LENGTH_SHORT).show();
                     handleError();
                 }
-            }
+            });
 
-            @Override
-            public void onFailure(final Call<Collection<BaseCategory>> call, final Throwable t) {
-                call.cancel();
-                Toast.makeText(getApplicationContext(), getString(R.string.noconnection),
-                        Toast.LENGTH_SHORT).show();
-                handleError();
-            }
-        });
+            final SharedPreferences sharedPreferences = getSharedPreferences("com.quislisting",
+                    Context.MODE_PRIVATE);
+            language = sharedPreferences.getString("language", "en");
+            final Call<Collection<LocationDTO>> getCountriesCall = apiInterface.getLocations(0L, language);
 
-        final SharedPreferences sharedPreferences = getSharedPreferences("com.quislisting",
-                Context.MODE_PRIVATE);
-        language = sharedPreferences.getString("language", "en");
-        final Call<Collection<LocationDTO>> getCountriesCall = apiInterface.getLocations(0L, language);
+            getCountriesCall.enqueue(new Callback<Collection<LocationDTO>>() {
+                @Override
+                public void onResponse(final Call<Collection<LocationDTO>> call,
+                                       final Response<Collection<LocationDTO>> response) {
+                    final boolean apiResponse = response.isSuccessful() && CollectionUtils.isNotEmpty(response.body());
+                    if (apiResponse) {
+                        handleDropDownMenus(response.body());
+                    } else {
+                        if (noSearchCriteria == null) {
+                            handleError();
+                        }
+                        Toast.makeText(getApplicationContext(), getString(R.string.retrievelocationerror),
+                                Toast.LENGTH_SHORT).show();
+                    }
+                }
 
-        getCountriesCall.enqueue(new Callback<Collection<LocationDTO>>() {
-            @Override
-            public void onResponse(final Call<Collection<LocationDTO>> call,
-                                   final Response<Collection<LocationDTO>> response) {
-                final boolean apiResponse = response.isSuccessful() && CollectionUtils.isNotEmpty(response.body());
-                if (apiResponse) {
-                    handleDropDownMenus(response.body());
-                } else {
+                @Override
+                public void onFailure(final Call<Collection<LocationDTO>> call, final Throwable t) {
+                    call.cancel();
                     if (noSearchCriteria == null) {
                         handleError();
                     }
                     Toast.makeText(getApplicationContext(), getString(R.string.retrievelocationerror),
                             Toast.LENGTH_SHORT).show();
                 }
-            }
-
-            @Override
-            public void onFailure(final Call<Collection<LocationDTO>> call, final Throwable t) {
-                call.cancel();
-                if (noSearchCriteria == null) {
-                    handleError();
-                }
-                Toast.makeText(getApplicationContext(), getString(R.string.retrievelocationerror),
-                        Toast.LENGTH_SHORT).show();
-            }
-        });
+            });
+        } else {
+            Toast.makeText(getApplicationContext(), getString(R.string.noconnection),
+                    Toast.LENGTH_SHORT).show();
+            handleError();
+        }
     }
 
     @Override

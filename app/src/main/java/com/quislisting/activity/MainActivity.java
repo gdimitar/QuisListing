@@ -35,6 +35,7 @@ import com.quislisting.retrofit.APIInterface;
 import com.quislisting.retrofit.impl.APIClient;
 import com.quislisting.service.SignoutService;
 import com.quislisting.util.CollectionUtils;
+import com.quislisting.util.ConnectionChecker;
 import com.quislisting.util.StringUtils;
 
 import java.util.ArrayList;
@@ -51,8 +52,6 @@ public class MainActivity extends AppCompatActivity {
     private Drawer result = null;
 
     private String idToken = null;
-
-    private ProgressDialog progressDialog;
 
     private APIInterface apiInterface;
 
@@ -72,14 +71,14 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         setTitle(getString(R.string.mainactivitytitle));
 
-        progressDialog = new ProgressDialog(this);
-        progressDialog.setMessage(getString(R.string.fetchdata));
-        progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
-        progressDialog.show();
-        progressDialog.setCancelable(false);
-
         final String selectedLanguage = sharedPreferences.getString("language", null);
-        if (StringUtils.isNotEmpty(selectedLanguage)) {
+        if (StringUtils.isNotEmpty(selectedLanguage) && ConnectionChecker.isOnline()) {
+            final ProgressDialog progressDialog = new ProgressDialog(this);
+            progressDialog.setMessage(getString(R.string.fetchdata));
+            progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+            progressDialog.show();
+            progressDialog.setCancelable(false);
+
             apiInterface = APIClient.getClient().create(APIInterface.class);
 
             final Call<Collection<BaseListing>> getBaseListingsCall = apiInterface.getBaseListings(selectedLanguage);
@@ -129,21 +128,26 @@ public class MainActivity extends AppCompatActivity {
         result = new DrawerBuilder().withActivity(this).withToolbar(toolbar)
                 .withSavedInstance(savedInstanceState).build();
 
-        final Call<User> getUserCall = apiInterface.getUser("Bearer " + idToken);
+        if (ConnectionChecker.isOnline()) {
+            final Call<User> getUserCall = apiInterface.getUser("Bearer " + idToken);
 
-        getUserCall.enqueue(new Callback<User>() {
-            @Override
-            public void onResponse(final Call<User> call, final Response<User> response) {
-                prepareDrawer(result, idToken, response.body());
-            }
+            getUserCall.enqueue(new Callback<User>() {
+                @Override
+                public void onResponse(final Call<User> call, final Response<User> response) {
+                    prepareDrawer(result, idToken, response.body());
+                }
 
-            @Override
-            public void onFailure(final Call<User> call, final Throwable t) {
-                call.cancel();
-                Toast.makeText(getApplicationContext(), getString(R.string.retrieveusererror),
-                        Toast.LENGTH_SHORT).show();
-            }
-        });
+                @Override
+                public void onFailure(final Call<User> call, final Throwable t) {
+                    call.cancel();
+                    Toast.makeText(getApplicationContext(), getString(R.string.retrieveusererror),
+                            Toast.LENGTH_SHORT).show();
+                }
+            });
+        } else {
+            Toast.makeText(getApplicationContext(), getString(R.string.retrieveusererror),
+                    Toast.LENGTH_SHORT).show();
+        }
     }
 
     @Override

@@ -18,6 +18,7 @@ import com.quislisting.model.Listing;
 import com.quislisting.retrofit.APIInterface;
 import com.quislisting.retrofit.impl.APIClient;
 import com.quislisting.util.CollectionUtils;
+import com.quislisting.util.ConnectionChecker;
 import com.quislisting.util.StringUtils;
 import com.viewpagerindicator.CirclePageIndicator;
 
@@ -64,48 +65,53 @@ public class ListingDetailsActivity extends AppCompatActivity implements View.On
 
         final String listingId = getIntent().getStringExtra("listingId");
 
-        final APIInterface apiInterface = APIClient.getClient().create(APIInterface.class);
+        if (ConnectionChecker.isOnline()) {
+            final APIInterface apiInterface = APIClient.getClient().create(APIInterface.class);
 
-        final Call<Listing> getListingCall = apiInterface.getListing(listingId);
+            final Call<Listing> getListingCall = apiInterface.getListing(listingId);
 
-        getListingCall.enqueue(new Callback<Listing>() {
-            @Override
-            public void onResponse(final Call<Listing> call, final Response<Listing> response) {
-                if (response.isSuccessful()) {
-                    final Listing listing = response.body();
-                    textCategory.setText(CollectionUtils.isNotEmpty(listing.getDlCategories())
-                            ? listing.getDlCategories().get(0) : StringUtils.UNKNOWN_VALUE);
-                    textLocation.setText(CollectionUtils.isNotEmpty(listing.getDlLocations())
-                            ? listing.getDlLocations().get(0).getLocation() : StringUtils.UNKNOWN_VALUE);
-                    textPrice.setText(listing.getPrice() != null
-                            ? String.valueOf(listing.getPrice().doubleValue()) : StringUtils.UNKNOWN_VALUE);
-                    textContact.setText(StringUtils.isNotEmpty(listing.getContactInfo())
-                            ? listing.getContactInfo() : StringUtils.UNKNOWN_VALUE);
-                    textDescription.setText(listing.getContent());
+            getListingCall.enqueue(new Callback<Listing>() {
+                @Override
+                public void onResponse(final Call<Listing> call, final Response<Listing> response) {
+                    if (response.isSuccessful()) {
+                        final Listing listing = response.body();
+                        textCategory.setText(CollectionUtils.isNotEmpty(listing.getDlCategories())
+                                ? listing.getDlCategories().get(0) : StringUtils.UNKNOWN_VALUE);
+                        textLocation.setText(CollectionUtils.isNotEmpty(listing.getDlLocations())
+                                ? listing.getDlLocations().get(0).getLocation() : StringUtils.UNKNOWN_VALUE);
+                        textPrice.setText(listing.getPrice() != null
+                                ? String.valueOf(listing.getPrice().doubleValue()) : StringUtils.UNKNOWN_VALUE);
+                        textContact.setText(StringUtils.isNotEmpty(listing.getContactInfo())
+                                ? listing.getContactInfo() : StringUtils.UNKNOWN_VALUE);
+                        textDescription.setText(listing.getContent());
 
-                    final List<Attachment> attachments = listing.getAttachments();
-                    if (CollectionUtils.isNotEmpty(attachments)) {
-                        initImageSlider(attachments);
+                        final List<Attachment> attachments = listing.getAttachments();
+                        if (CollectionUtils.isNotEmpty(attachments)) {
+                            initImageSlider(attachments);
+                        }
+                    } else {
+                        scrollView.removeAllViews();
+                        setContentView(R.layout.empty_layout);
+
+                        Toast.makeText(getApplicationContext(), getString(R.string.retrievelistingdetailsfailed),
+                                Toast.LENGTH_SHORT).show();
+
+                        final TextView emptyText = (TextView) findViewById(R.id.emptyText);
+                        emptyText.setText(getString(R.string.nolistings));
                     }
-                } else {
-                    scrollView.removeAllViews();
-                    setContentView(R.layout.empty_layout);
-
-                    Toast.makeText(getApplicationContext(), getString(R.string.retrievelistingdetailsfailed),
-                            Toast.LENGTH_SHORT).show();
-
-                    final TextView emptyText = (TextView) findViewById(R.id.emptyText);
-                    emptyText.setText(getString(R.string.nolistings));
                 }
-            }
 
-            @Override
-            public void onFailure(final Call<Listing> call, final Throwable t) {
-                call.cancel();
-                Toast.makeText(getApplicationContext(), getString(R.string.noconnection),
-                        Toast.LENGTH_SHORT).show();
-            }
-        });
+                @Override
+                public void onFailure(final Call<Listing> call, final Throwable t) {
+                    call.cancel();
+                    Toast.makeText(getApplicationContext(), getString(R.string.noconnection),
+                            Toast.LENGTH_SHORT).show();
+                }
+            });
+        } else {
+            Toast.makeText(getApplicationContext(), getString(R.string.noconnection),
+                    Toast.LENGTH_SHORT).show();
+        }
 
         editListing.setOnClickListener(this);
         sendMessage.setOnClickListener(this);

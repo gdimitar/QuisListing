@@ -1,4 +1,4 @@
-package com.quislisting.rest.endpoints;
+package com.quislisting.endpoints.rest;
 
 import com.quislisting.BuildConfig;
 

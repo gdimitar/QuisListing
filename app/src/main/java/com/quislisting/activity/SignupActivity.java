@@ -34,6 +34,7 @@ import com.quislisting.R;
 import com.quislisting.model.request.RegisterUserRequest;
 import com.quislisting.retrofit.APIInterface;
 import com.quislisting.retrofit.impl.APIClient;
+import com.quislisting.util.ConnectionChecker;
 import com.quislisting.util.FieldValidationUtils;
 import com.quislisting.util.PasswordStrengthUtil;
 import com.quislisting.util.StringUtils;
@@ -88,7 +89,6 @@ public class SignupActivity extends AppCompatActivity implements View.OnClickLis
     @Bind(R.id.progressBarText)
     TextView progressBarText;
 
-    private ProgressDialog progressDialog;
     private ProgressDialog facebookProgressDialog;
 
     private CallbackManager callbackManager;
@@ -302,14 +302,14 @@ public class SignupActivity extends AppCompatActivity implements View.OnClickLis
     }
 
     public void signup() {
-        if (!validate()) {
+        if (!validate() && !ConnectionChecker.isOnline()) {
             onSignupFailed();
             return;
         }
 
         register.setEnabled(false);
 
-        progressDialog = new ProgressDialog(this);
+        final ProgressDialog progressDialog = new ProgressDialog(this);
         progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
         progressDialog.setCancelable(false);
         progressDialog.setMessage(getString(R.string.creatingaccount));
@@ -345,6 +345,7 @@ public class SignupActivity extends AppCompatActivity implements View.OnClickLis
                 Toast.makeText(getBaseContext(), getString(R.string.noconnection), Toast.LENGTH_SHORT).show();
             }
         });
+        progressDialog.dismiss();
     }
 
 
@@ -352,7 +353,6 @@ public class SignupActivity extends AppCompatActivity implements View.OnClickLis
         Toast.makeText(getBaseContext(), getString(R.string.loginsuccessful), Toast.LENGTH_SHORT).show();
 
         register.setEnabled(true);
-        progressDialog.dismiss();
         setResult(RESULT_OK, null);
         finish();
     }
@@ -360,7 +360,6 @@ public class SignupActivity extends AppCompatActivity implements View.OnClickLis
     public void onSignupFailed() {
         Toast.makeText(getBaseContext(), getString(R.string.loginfailed), Toast.LENGTH_SHORT).show();
 
-        progressDialog.dismiss();
         register.setEnabled(true);
     }
 

@@ -22,6 +22,7 @@ import com.quislisting.model.request.MessageRequest;
 import com.quislisting.retrofit.APIInterface;
 import com.quislisting.retrofit.impl.APIClient;
 import com.quislisting.util.ButtonUtils;
+import com.quislisting.util.ConnectionChecker;
 import com.quislisting.util.EditTextUtils;
 import com.quislisting.util.FieldValidationUtils;
 import com.quislisting.util.StringUtils;
@@ -111,7 +112,7 @@ public class SendMessageActivity extends AppCompatActivity implements View.OnCli
             case R.id.send_message:
                 if (!validateInputElements()) {
                     return;
-                } else {
+                } else if (ConnectionChecker.isOnline()) {
                     final AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(this);
                     alertDialogBuilder.setMessage(R.string.registernewusertext).setCancelable(false)
                             .setPositiveButton(getString(R.string.alertdialogyes),
@@ -155,6 +156,9 @@ public class SendMessageActivity extends AppCompatActivity implements View.OnCli
                     final AlertDialog alertDialog = alertDialogBuilder.create();
                     alertDialog.setTitle(getString(R.string.alertdialognewuser));
                     alertDialog.show();
+                } else {
+                    Toast.makeText(getApplicationContext(), getString(R.string.noconnection),
+                            Toast.LENGTH_SHORT).show();
                 }
                 break;
         }

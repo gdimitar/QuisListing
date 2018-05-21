@@ -1,6 +1,7 @@
 package com.quislisting.retrofit;
 
 import com.quislisting.dto.LocationDTO;
+import com.quislisting.endpoints.rest.RestRouter;
 import com.quislisting.model.AuthenticationResult;
 import com.quislisting.model.BaseCategory;
 import com.quislisting.model.BaseListing;
@@ -12,7 +13,6 @@ import com.quislisting.model.request.ContactMessageRequest;
 import com.quislisting.model.request.MessageRequest;
 import com.quislisting.model.request.RegisterUserRequest;
 import com.quislisting.model.request.UpdateUserRequest;
-import com.quislisting.rest.endpoints.RestRouter;
 
 import java.util.Collection;
 

@@ -14,6 +14,7 @@ import com.quislisting.R;
 import com.quislisting.model.request.ContactMessageRequest;
 import com.quislisting.retrofit.APIInterface;
 import com.quislisting.retrofit.impl.APIClient;
+import com.quislisting.util.ConnectionChecker;
 
 import butterknife.Bind;
 import butterknife.ButterKnife;
@@ -33,8 +34,6 @@ public class AddListingActivity extends AppCompatActivity implements View.OnClic
     EditText message;
     @Bind(R.id.send)
     Button sendMessage;
-
-    private APIInterface apiInterface;
 
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
@@ -57,31 +56,36 @@ public class AddListingActivity extends AppCompatActivity implements View.OnClic
                         Context.MODE_PRIVATE);
                 final String language = sharedPreferences.getString("language", "en");
 
-                apiInterface = APIClient.getClient().create(APIInterface.class);
+                if (ConnectionChecker.isOnline()) {
+                    final APIInterface apiInterface = APIClient.getClient().create(APIInterface.class);
 
-                final ContactMessageRequest contactMessageRequest =
-                        new ContactMessageRequest(email.getText().toString(), name.getText().toString(),
-                                subject.getText().toString(), message.getText().toString(), language);
-                final Call<Integer> sendContactMessageCall = apiInterface.sendContactMessage(contactMessageRequest);
-                sendContactMessageCall.enqueue(new Callback<Integer>() {
-                    @Override
-                    public void onResponse(final Call<Integer> call, final Response<Integer> response) {
-                        if (response.isSuccessful()) {
-                            Toast.makeText(getApplicationContext(), getString(R.string.contactemailsent),
-                                    Toast.LENGTH_SHORT).show();
-                        } else {
-                            Toast.makeText(getApplicationContext(), getString(R.string.contactemailnotsent),
+                    final ContactMessageRequest contactMessageRequest =
+                            new ContactMessageRequest(email.getText().toString(), name.getText().toString(),
+                                    subject.getText().toString(), message.getText().toString(), language);
+                    final Call<Integer> sendContactMessageCall = apiInterface.sendContactMessage(contactMessageRequest);
+                    sendContactMessageCall.enqueue(new Callback<Integer>() {
+                        @Override
+                        public void onResponse(final Call<Integer> call, final Response<Integer> response) {
+                            if (response.isSuccessful()) {
+                                Toast.makeText(getApplicationContext(), getString(R.string.contactemailsent),
+                                        Toast.LENGTH_SHORT).show();
+                            } else {
+                                Toast.makeText(getApplicationContext(), getString(R.string.contactemailnotsent),
+                                        Toast.LENGTH_SHORT).show();
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(final Call<Integer> call, final Throwable t) {
+                            call.cancel();
+                            Toast.makeText(getApplicationContext(), getString(R.string.noconnection),
                                     Toast.LENGTH_SHORT).show();
                         }
-                    }
-
-                    @Override
-                    public void onFailure(final Call<Integer> call, final Throwable t) {
-                        call.cancel();
-                        Toast.makeText(getApplicationContext(), getString(R.string.noconnection),
-                                Toast.LENGTH_SHORT).show();
-                    }
-                });
+                    });
+                } else {
+                    Toast.makeText(getApplicationContext(), getString(R.string.noconnection),
+                            Toast.LENGTH_SHORT).show();
+                }
         }
     }
 }

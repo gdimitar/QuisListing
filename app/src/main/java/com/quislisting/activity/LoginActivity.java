@@ -34,6 +34,7 @@ import com.quislisting.model.AuthenticationResult;
 import com.quislisting.model.request.AuthenticateUserRequest;
 import com.quislisting.retrofit.APIInterface;
 import com.quislisting.retrofit.impl.APIClient;
+import com.quislisting.util.ConnectionChecker;
 import com.quislisting.util.FieldValidationUtils;
 import com.quislisting.util.PasswordStrengthUtil;
 import com.quislisting.util.StringUtils;
@@ -301,52 +302,55 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
         loginProgressDialog.setMessage(getString(R.string.authenticatinguser));
         loginProgressDialog.show();
 
-        final APIInterface apiInterface = APIClient.getClient().create(APIInterface.class);
+        if (ConnectionChecker.isOnline()) {
+            final APIInterface apiInterface = APIClient.getClient().create(APIInterface.class);
 
-        final AuthenticateUserRequest authenticateUserRequest =
-                new AuthenticateUserRequest(username.getText().toString(), password.getText().toString(),
-                        false);
-        final Call<AuthenticationResult> authenticationResultCall = apiInterface.authenticateUser(authenticateUserRequest);
-        authenticationResultCall.enqueue(new Callback<AuthenticationResult>() {
-            @Override
-            public void success(final Result<AuthenticationResult> result) {
-                Intent intent = null;
-                final String fromView = getIntent().getStringExtra("fromView");
+            final AuthenticateUserRequest authenticateUserRequest =
+                    new AuthenticateUserRequest(username.getText().toString(), password.getText().toString(),
+                            false);
+            final Call<AuthenticationResult> authenticationResultCall = apiInterface.authenticateUser(authenticateUserRequest);
+            authenticationResultCall.enqueue(new Callback<AuthenticationResult>() {
+                @Override
+                public void success(final Result<AuthenticationResult> result) {
+                    Intent intent = null;
+                    final String fromView = getIntent().getStringExtra("fromView");
 
-                switch (fromView) {
-                    case MAIN_VIEW:
-                        intent = new Intent(getApplicationContext(), MainActivity.class);
-                        break;
-                    case ADD_LISTING_VIEW:
-                        intent = new Intent(getApplicationContext(), AddListingActivity.class);
-                        break;
-                    case LISTINGS_VIEW:
-                        intent = new Intent(getApplicationContext(), ListingsActivity.class);
-                        break;
-                    case MESSAGES_VIEW:
-                        intent = new Intent(getApplicationContext(), MessagesActivity.class);
-                        break;
+                    switch (fromView) {
+                        case MAIN_VIEW:
+                            intent = new Intent(getApplicationContext(), MainActivity.class);
+                            break;
+                        case ADD_LISTING_VIEW:
+                            intent = new Intent(getApplicationContext(), AddListingActivity.class);
+                            break;
+                        case LISTINGS_VIEW:
+                            intent = new Intent(getApplicationContext(), ListingsActivity.class);
+                            break;
+                        case MESSAGES_VIEW:
+                            intent = new Intent(getApplicationContext(), MessagesActivity.class);
+                            break;
+                    }
+
+                    assert intent != null;
+                    intent.putExtra("username", username.getText().toString());
+
+                    if (result != null && StringUtils.isNotEmpty(result.data.getId_token())) {
+                        intent.putExtra("idToken", result.data.getId_token());
+                        onLoginSuccess();
+                        startActivity(intent);
+                    } else {
+                        onLoginFailed();
+                    }
                 }
 
-                assert intent != null;
-                intent.putExtra("username", username.getText().toString());
-
-                if (result != null && StringUtils.isNotEmpty(result.data.getId_token())) {
-                    intent.putExtra("idToken", result.data.getId_token());
-                    onLoginSuccess();
-                    startActivity(intent);
-                } else {
+                @Override
+                public void failure(final TwitterException exception) {
                     onLoginFailed();
                 }
-                loginProgressDialog.dismiss();
-            }
-
-            @Override
-            public void failure(final TwitterException exception) {
-                onLoginFailed();
-                loginProgressDialog.dismiss();
-            }
-        });
+            });
+        } else {
+            onLoginFailed();
+        }
+        loginProgressDialog.dismiss();
     }
 
     private void handleSignInResult(final GoogleSignInResult result) {

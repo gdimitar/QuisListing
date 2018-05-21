@@ -16,6 +16,7 @@ import com.quislisting.model.Message;
 import com.quislisting.retrofit.APIInterface;
 import com.quislisting.retrofit.impl.APIClient;
 import com.quislisting.util.CollectionUtils;
+import com.quislisting.util.ConnectionChecker;
 import com.quislisting.util.StringUtils;
 
 import java.util.ArrayList;
@@ -51,7 +52,7 @@ public class MessagesActivity extends AppCompatActivity {
         progressDialog.show();
         progressDialog.setCancelable(false);
 
-        if (StringUtils.isNotEmpty(idToken)) {
+        if (StringUtils.isNotEmpty(idToken) && ConnectionChecker.isOnline()) {
             final APIInterface apiInterface = APIClient.getClient().create(APIInterface.class);
 
             final Call<Collection<Message>> getMessagesCall = apiInterface.getMessages("Bearer " + idToken);
@@ -93,6 +94,9 @@ public class MessagesActivity extends AppCompatActivity {
                             Toast.LENGTH_SHORT).show();
                 }
             });
+        } else {
+            Toast.makeText(getApplicationContext(), getString(R.string.noconnection),
+                    Toast.LENGTH_SHORT).show();
         }
     }
 
